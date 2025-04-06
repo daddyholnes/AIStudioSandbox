@@ -1,0 +1,99 @@
+LiveKit Integration Rulebook for Building an AI-Powered Development Environment
+This comprehensive guide provides detailed instructions for building an advanced development environment with LiveKit, featuring real-time communication, AI integration, and code generation capabilities.
+
+Project Overview and Architecture
+LiveKit will serve as the backbone for real-time communication in this application, providing the infrastructure for two-way audio chat and potentially video interactions. The application will integrate Google's AI models through Vertex AI to enable AI-assisted development and long-running chat sessions.
+
+Core Components
+LiveKit Cloud: For WebRTC-based real-time communication
+
+Code Sandbox: VS Code-like environment with extensions support
+
+Google AI Studio Integration: Connecting to Gemini and other Vertex AI models
+
+Persistent Chat: With history tracking and summary capabilities
+
+Backend APIs: For authentication, model management, and session persistence
+
+Setting Up LiveKit Project
+Initial Setup
+Create a LiveKit Cloud Account:
+
+bash
+# Visit cloud.livekit.io and sign up for an account
+# Create a new project from the dashboard
+Generate API Keys:
+After creating a project, you'll receive essential credentials similar to those in the screenshots:
+
+WebSocket URL (e.g., wss://dartopia-gvufe64.live)
+
+API Key (e.g., APlaZrQMipD8nwY)
+
+API Secret (e.g., ulZBoLKvqZ389MhyMmg53)
+
+Install LiveKit CLI:
+
+bash
+npm install -g livekit-cli
+# Authenticate with your cloud project
+lk cloud auth
+Configuration Setup
+Create a configuration file to store LiveKit credentials:
+
+javascript
+// livekit-config.js
+module.exports = {
+  apiKey: process.env.LIVEKIT_API_KEY,
+  apiSecret: process.env.LIVEKIT_API_SECRET,
+  wsUrl: process.env.LIVEKIT_URL
+};
+Set up environment variables in your application:
+
+text
+LIVEKIT_API_KEY=your_api_key
+LIVEKIT_API_SECRET=your_api_secret
+LIVEKIT_URL=wss://your-project-url.livekit.cloud
+Implementing Real-Time Audio Chat
+Server-Side Setup
+Create Room Service:
+
+javascript
+const { RoomServiceClient } = require('livekit-server-sdk');
+const roomService = new RoomServiceClient(
+  wsUrl,
+  apiKey,
+  apiSecret
+);
+
+// Create a room for communication
+async function createRoom(roomName) {
+  try {
+    await roomService.createRoom({
+      name: roomName,
+      emptyTimeout: 300, // Room closes after 5 minutes if empty
+      maxParticipants: 2  // Limit to user and AI assistant
+    });
+    return { success: true, roomName };
+  } catch (error) {
+    console.error('Error creating room:', error);
+    return { success: false, error: error.message };
+  }
+}
+Generate Access Tokens:
+
+javascript
+const { AccessToken } = require('livekit-server-sdk');
+
+function generateToken(roomName, participantName, isPublisher = true) {
+  const token = new AccessToken(apiKey, apiSecret, {
+    identity: participantName
+  });
+  
+  // Add appropriate permissions
+  token.addGrant({
+    roomJoin: true,
+    room: roomName,
+    canPublish: isPublisher,
+    canSubscribe: true
+  });
+  

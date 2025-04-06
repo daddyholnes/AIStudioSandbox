@@ -1,0 +1,90 @@
+Integrating Google AI (Gemini and Vertex AI)
+Server-Side Integration
+Set Up Google AI Client:
+
+javascript
+const { google } = require('googleapis');
+
+async function setupGoogleAIClient() {
+  // Authenticate with Google Cloud
+  const auth = new google.auth.GoogleAuth({
+    keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    scopes: ['https://www.googleapis.com/auth/cloud-platform']
+  });
+  
+  const client = await auth.getClient();
+  const vertexai = google.vertexai({
+    version: 'v1',
+    auth: client
+  });
+  
+  return vertexai;
+}
+Connect to Gemini Model:
+
+python
+# For Python backend
+from livekit.plugins import google
+
+# Create Gemini LLM instance
+gemini_llm = google.LLM(
+  model="gemini-2.0-flash-exp",
+  temperature=0.8,
+  vertexai=True,
+  project="your-google-cloud-project",
+  location="us-central1"
+)
+Implementing AI Chat Logic
+Create Chat Session Handler:
+
+javascript
+class AIAssistantSession {
+  constructor(userId) {
+    this.userId = userId;
+    this.history = [];
+    this.summaries = [];
+    this.lastActive = Date.now();
+  }
+  
+  async sendMessage(message) {
+    // Add message to history
+    this.history.push({
+      role: 'user',
+      content: message,
+      timestamp: Date.now()
+    });
+    
+    // Get response from AI
+    const response = await this.generateAIResponse(message);
+    
+    // Add response to history
+    this.history.push({
+      role: 'assistant',
+      content: response,
+      timestamp: Date.now()
+    });
+    
+    // Update last active time
+    this.lastActive = Date.now();
+    
+    // Generate summary if needed
+    if (this.history.length > 20) {
+      await this.generateSummary();
+    }
+    
+    return response;
+  }
+  
+  async generateAIResponse(message) {
+    // Implementation would use Google AI APIs
+    // This is a simplified example
+    const contextString = this.getContextString();
+    
+    // Call your AI model API here
+    // return await callGeminiModel(contextString, message);
+  }
+  
+  getContextString() {
+    // Combine summaries and recent conversation
+    let context = '';
+    

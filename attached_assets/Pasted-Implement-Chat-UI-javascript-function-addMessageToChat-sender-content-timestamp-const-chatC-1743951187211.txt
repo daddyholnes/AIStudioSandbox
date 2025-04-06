@@ -1,0 +1,107 @@
+Implement Chat UI:
+
+javascript
+function addMessageToChat(sender, content, timestamp) {
+  const chatContainer = document.getElementById('chat-messages');
+  const messageElement = document.createElement('div');
+  messageElement.className = 'chat-message';
+  
+  const timeString = new Date(timestamp).toLocaleTimeString();
+  messageElement.innerHTML = `
+    <span class="sender">${sender}</span>
+    <span class="time">${timeString}</span>
+    <div class="content">${content}</div>
+  `;
+  
+  chatContainer.appendChild(messageElement);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+Integrating Code Sandbox with VS Code Features
+Basic Code Editor Implementation
+Set Up Monaco Editor:
+
+javascript
+import * as monaco from 'monaco-editor';
+
+let editor;
+
+function initCodeEditor() {
+  editor = monaco.editor.create(document.getElementById('code-editor'), {
+    value: '// Start coding here...',
+    language: 'javascript',
+    theme: 'vs-dark',
+    automaticLayout: true,
+    minimap: { enabled: true },
+    scrollBeyondLastLine: false
+  });
+  
+  setupEditorExtensions();
+}
+Implement Basic Extensions:
+
+javascript
+function setupEditorExtensions() {
+  // Add code completion provider
+  monaco.languages.registerCompletionItemProvider('javascript', {
+    provideCompletionItems: (model, position) => {
+      // Basic implementation - would be enhanced with AI
+      const suggestions = [
+        {
+          label: 'console.log',
+          kind: monaco.languages.CompletionItemKind.Method,
+          insertText: 'console.log($1);',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+        }
+      ];
+      return { suggestions };
+    }
+  });
+}
+Code Execution Environment
+Secure Code Execution:
+
+javascript
+async function executeCode(code) {
+  try {
+    // For basic JavaScript execution
+    const result = await evaluateCodeSafely(code);
+    displayExecutionResult(result);
+  } catch (error) {
+    displayExecutionError(error);
+  }
+}
+
+function evaluateCodeSafely(code) {
+  // Create a sandbox iframe for code execution
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    
+    // Setup message communication
+    window.addEventListener('message', function handler(event) {
+      if (event.source === iframe.contentWindow) {
+        window.removeEventListener('message', handler);
+        document.body.removeChild(iframe);
+        if (event.data.error) {
+          reject(event.data.error);
+        } else {
+          resolve(event.data.result);
+        }
+      }
+    });
+    
+    // Execute code in iframe
+    iframe.contentWindow.document.write(`
+      <script>
+        try {
+          const result = (function() { ${code} })();
+          window.parent.postMessage({ result }, '*');
+        } catch (error) {
+          window.parent.postMessage({ error: error.message }, '*');
+        }
+      </script>
+    `);
+  });
+}
+Integrating Goog

@@ -1,0 +1,78 @@
+class AIAssistantSession {
+  constructor(userId) {
+    this.userId = userId;
+    this.history = [];
+    this.summaries = [];
+    this.lastActive = Date.now();
+  }
+  
+  async sendMessage(message) {
+    // Add message to history
+    this.history.push({
+      role: 'user',
+      content: message,
+      timestamp: Date.now()
+    });
+    
+    // Get response from AI
+    const response = await this.generateAIResponse(message);
+    
+    // Add response to history
+    this.history.push({
+      role: 'assistant',
+      content: response,
+      timestamp: Date.now()
+    });
+    
+    // Update last active time
+    this.lastActive = Date.now();
+    
+    // Generate summary if needed
+    if (this.history.length > 20) {
+      await this.generateSummary();
+    }
+    
+    return response;
+  }
+  
+  async generateAIResponse(message) {
+    // Implementation would use Google AI APIs
+    // This is a simplified example
+    const contextString = this.getContextString();
+    
+    // Call your AI model API here
+    // return await callGeminiModel(contextString, message);
+  }
+  
+  getContextString() {
+    // Combine summaries and recent conversation
+    let context = '';
+    
+    if (this.summaries.length > 0) {
+      context += 'Previous conversation summaries:\n';
+      context += this.summaries.join('\n');
+      context += '\n\nRecent conversation:\n';
+    }
+    
+    // Add last 10 messages or fewer if history is shorter
+    const recentMessages = this.history.slice(-10);
+    for (const msg of recentMessages) {
+      context += `${msg.role}: ${msg.content}\n`;
+    }
+    
+    return context;
+  }
+  
+  async generateSummary() {
+    // Generate summary of older conversation
+    const messagesToSummarize = this.history.slice(0, -10);
+    
+    // Simplified - in reality, you'd use AI to generate this summary
+    const summary = `Summary of conversation from ${new Date(messagesToSummarize[0].timestamp).toLocaleString()} to ${new Date(messagesToSummarize[messagesToSummarize.length - 1].timestamp).toLocaleString()}`;
+    
+    this.summaries.push(summary);
+    
+    // Remove summarized messages from active history
+    this.history = this.history.slice(-10);
+  }
+}

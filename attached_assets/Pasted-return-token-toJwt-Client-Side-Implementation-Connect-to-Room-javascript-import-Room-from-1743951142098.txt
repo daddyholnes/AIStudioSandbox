@@ -1,0 +1,91 @@
+return token.toJwt();
+}
+Client-Side Implementation
+Connect to Room:
+
+javascript
+import { Room } from 'livekit-client';
+
+const room = new Room({
+  adaptiveStream: true,
+  dynacast: true,
+  audioDeviceId: 'default'
+});
+
+async function connectToRoom(token) {
+  try {
+    await room.connect(wsUrl, token);
+    console.log('Connected to room:', room.name);
+    setupAudioTracks();
+  } catch (error) {
+    console.error('Error connecting to room:', error);
+  }
+}
+Handle Audio Tracks:
+
+javascript
+async function setupAudioTracks() {
+  // Publish local audio
+  const microphoneTrack = await createLocalAudioTrack();
+  await room.localParticipant.publishTrack(microphoneTrack);
+  
+  // Subscribe to remote tracks
+  room.on('trackSubscribed', (track, publication, participant) => {
+    if (track.kind === 'audio') {
+      // Attach audio to audio element
+      const audioElement = document.getElementById('remote-audio');
+      track.attach(audioElement);
+    }
+  });
+}
+Implementing Text Chat Feature
+Server-Side Implementation
+Set Up Data Channel:
+
+javascript
+const { DataPacket_Kind } = require('livekit-server-sdk');
+
+// Send data to specific participant
+async function sendMessageToParticipant(roomName, participantIdentity, message) {
+  await roomService.sendData({
+    room: roomName,
+    data: Buffer.from(JSON.stringify({
+      type: 'chat',
+      content: message,
+      timestamp: Date.now()
+    })),
+    kind: DataPacket_Kind.RELIABLE,
+    destinationIdentities: [participantIdentity]
+  });
+}
+Client-Side Implementation
+Handle Chat Messages:
+
+javascript
+// Send chat message
+function sendChatMessage(message) {
+  room.localParticipant.publishData(
+    JSON.stringify({
+      type: 'chat',
+      content: message,
+      sender: room.localParticipant.identity,
+      timestamp: Date.now()
+    }),
+    DataPacket_Kind.RELIABLE
+  );
+}
+
+// Receive chat messages
+room.on('dataReceived', (payload, participant) => {
+  try {
+    const data = JSON.parse(new TextDecoder().decode(payload));
+    if (data.type === 'chat') {
+      // Add message to chat UI
+      addMessageToChat(data.sender, data.content, data.timestamp);
+    }
+  } catch (error) {
+    console.error('Error processing received data:', error);
+  }
+});
+Implement Chat UI:
+
