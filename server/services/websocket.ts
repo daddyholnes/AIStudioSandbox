@@ -1,686 +1,610 @@
+// WebSocket-based Room Service
+// This module provides real-time collaboration capabilities without LiveKit
+
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { v4 as uuidv4 } from 'uuid';
+import { log } from '../vite';
 
-// Define participant and room types
+// Participant in a room
 interface Participant {
   id: string;
+  ws: WebSocket;
   name: string;
-  socket: WebSocket;
   isPublisher: boolean;
+  joinedAt: Date;
+  status: 'active' | 'idle' | 'away';
 }
 
+// Room state
 interface Room {
   id: string;
-  name: string;
   participants: Map<string, Participant>;
-  metadata?: Record<string, any>;
-  createdAt: number;
+  createdAt: Date;
+  lastActive: Date;
 }
 
-// Main WebSocket collaboration service
-class WebSocketCollaboration {
-  private wss: WebSocketServer | null = null;
+// WebSocket connection with client ID
+interface WebSocketWithId extends WebSocket {
+  clientId: string;
+}
+
+/**
+ * WebSocketRoomManager
+ * Manages rooms and participants for real-time collaboration
+ */
+export class WebSocketRoomManager {
   private rooms: Map<string, Room> = new Map();
+  private clients: Map<string, Participant> = new Map();
+  private wss: WebSocketServer | null = null;
   
   /**
    * Initialize the WebSocket server
    * @param server HTTP server instance
    */
-  initialize(server: Server) {
-    // Create WebSocket server with a distinct path so it doesn't conflict
-    // with Vite's HMR websocket or any other WebSockets
+  initialize(server: Server): void {
+    if (this.wss) {
+      return;
+    }
+    
+    // Create WebSocket server
     this.wss = new WebSocketServer({ 
-      server, 
-      path: '/ws/collab'
+      server,
+      path: '/ws'
     });
     
-    console.log('WebSocket collaboration server initialized');
+    log('WebSocket collaboration server initialized', 'websocket');
     
-    // Handle connections
-    this.wss.on('connection', (socket: WebSocket) => {
-      // Create a unique ID for the socket
-      const socketId = uuidv4();
-      let participantRoom: Room | null = null;
-      let participantId: string | null = null;
+    // Handle new connections
+    this.wss.on('connection', (ws: WebSocket) => {
+      const clientId = uuidv4();
+      (ws as WebSocketWithId).clientId = clientId;
       
-      console.log(`WebSocket client connected: ${socketId}`);
+      log(`WebSocket client connected: ${clientId}`, 'websocket');
       
-      // Handle messages from clients
-      socket.on('message', (message: string) => {
-        try {
-          const data = JSON.parse(message);
-          this.handleMessage(socket, socketId, data, participantRoom, participantId);
-          
-          // Update room reference if the message is a join room event
-          if (data.type === 'join-room' && data.roomId) {
-            const room = this.rooms.get(data.roomId);
-            if (room) {
-              participantRoom = room;
-              participantId = data.participantId || socketId;
-            }
-          }
-        } catch (error) {
-          console.error('Error handling WebSocket message:', error);
-          this.sendToSocket(socket, {
-            type: 'error',
-            error: 'Invalid message format'
-          });
-        }
+      // Send client ID to client
+      ws.send(JSON.stringify({
+        type: 'client_id',
+        clientId
+      }));
+      
+      // Handle messages
+      ws.on('message', (message: Buffer) => {
+        this.handleMessage(ws as WebSocketWithId, message);
       });
       
-      // Handle disconnection
-      socket.on('close', () => {
-        console.log(`WebSocket client disconnected: ${socketId}`);
-        this.handleDisconnect(socketId, participantRoom, participantId);
+      // Handle disconnections
+      ws.on('close', () => {
+        this.handleDisconnect(ws as WebSocketWithId);
       });
       
       // Handle errors
-      socket.on('error', (error) => {
-        console.error(`WebSocket error for client ${socketId}:`, error);
-      });
-      
-      // Send initial connection acknowledgment
-      this.sendToSocket(socket, {
-        type: 'connected',
-        id: socketId
+      ws.on('error', (error: Error) => {
+        log(`WebSocket error for client ${clientId}: ${error.message}`, 'websocket');
       });
     });
   }
   
   /**
-   * Handle incoming WebSocket messages
-   * @param socket WebSocket connection
-   * @param socketId Socket identifier
-   * @param data Message data
-   * @param currentRoom Current room the participant is in
-   * @param participantId Participant identifier
+   * Handle a message from a client
+   * @param ws WebSocket connection
+   * @param message Message buffer
    */
-  private handleMessage(
-    socket: WebSocket, 
-    socketId: string, 
-    data: any, 
-    currentRoom: Room | null,
-    participantId: string | null
-  ) {
-    switch (data.type) {
-      case 'create-room':
-        this.handleCreateRoom(socket, data, socketId);
-        break;
-        
-      case 'join-room':
-        this.handleJoinRoom(socket, data, socketId);
-        break;
-        
-      case 'leave-room':
-        this.handleLeaveRoom(socketId, currentRoom, participantId);
-        break;
-        
-      case 'send-message':
-        this.handleSendMessage(data, currentRoom, participantId);
-        break;
-        
-      case 'update-state':
-        this.handleUpdateState(data, currentRoom, participantId);
-        break;
-        
-      case 'cursor-update':
-        this.handleCursorUpdate(data, currentRoom, participantId);
-        break;
-        
-      case 'code-update':
-        this.handleCodeUpdate(data, currentRoom, participantId);
-        break;
-        
-      case 'get-room-participants':
-        this.handleGetParticipants(socket, currentRoom);
-        break;
-        
-      default:
-        this.sendToSocket(socket, {
-          type: 'error',
-          error: `Unknown message type: ${data.type}`
-        });
+  private handleMessage(ws: WebSocketWithId, message: Buffer): void {
+    try {
+      const data = JSON.parse(message.toString());
+      
+      switch (data.type) {
+        case 'ping':
+          // Respond to ping with pong
+          ws.send(JSON.stringify({ type: 'pong' }));
+          break;
+          
+        case 'create_room':
+          this.handleCreateRoom(ws, data);
+          break;
+          
+        case 'join_room':
+          this.handleJoinRoom(ws, data);
+          break;
+          
+        case 'leave_room':
+          this.handleLeaveRoom(ws);
+          break;
+          
+        case 'get_participants':
+          this.handleGetParticipants(ws, data);
+          break;
+          
+        case 'status_update':
+          this.handleStatusUpdate(ws, data);
+          break;
+          
+        case 'cursor_update':
+          this.handleCursorUpdate(ws, data);
+          break;
+          
+        case 'code_update':
+          this.handleCodeUpdate(ws, data);
+          break;
+          
+        case 'chat_message':
+          this.handleChatMessage(ws, data);
+          break;
+          
+        default:
+          log(`Unknown message type from client ${ws.clientId}: ${data.type}`, 'websocket');
+      }
+    } catch (error) {
+      log(`Error parsing message from client ${ws.clientId}: ${error}`, 'websocket');
     }
   }
   
   /**
-   * Handle create room requests
-   * @param socket WebSocket connection
-   * @param data Message data
-   * @param socketId Socket identifier
+   * Handle client disconnect
+   * @param ws WebSocket connection
    */
-  private handleCreateRoom(socket: WebSocket, data: any, socketId: string) {
-    // Generate a room ID if not provided
-    const roomId = data.roomId || uuidv4();
+  private handleDisconnect(ws: WebSocketWithId): void {
+    const participant = this.clients.get(ws.clientId);
+    
+    if (participant) {
+      const roomId = this.getRoomIdForParticipant(ws.clientId);
+      
+      if (roomId) {
+        // Remove from room
+        const room = this.rooms.get(roomId);
+        
+        if (room) {
+          room.participants.delete(ws.clientId);
+          room.lastActive = new Date();
+          
+          log(`Participant ${ws.clientId} (${participant.name}) left room ${roomId}`, 'websocket');
+          
+          // Notify other participants
+          this.broadcastToRoom(roomId, {
+            type: 'participant_left',
+            roomId,
+            participantId: ws.clientId,
+            participantName: participant.name
+          }, ws.clientId);
+          
+          // Delete room if empty
+          if (room.participants.size === 0) {
+            this.rooms.delete(roomId);
+            log(`Room ${roomId} deleted (no participants)`, 'websocket');
+          }
+        }
+      }
+      
+      // Remove from clients
+      this.clients.delete(ws.clientId);
+    }
+    
+    log(`WebSocket client disconnected: ${ws.clientId}`, 'websocket');
+  }
+  
+  /**
+   * Handle create room request
+   * @param ws WebSocket connection
+   * @param data Message data
+   */
+  private handleCreateRoom(ws: WebSocketWithId, data: any): void {
+    // Generate room ID if not provided
+    const roomId = data.roomId || uuidv4().substring(0, 8);
     
     // Check if room already exists
     if (this.rooms.has(roomId)) {
-      this.sendToSocket(socket, {
+      ws.send(JSON.stringify({
         type: 'error',
-        error: 'Room already exists'
-      });
+        message: 'Room already exists'
+      }));
       return;
     }
     
-    // Create the room
-    const room: Room = {
+    // Create new room
+    this.rooms.set(roomId, {
       id: roomId,
-      name: data.roomName || `Room-${roomId}`,
       participants: new Map(),
-      metadata: data.metadata || {},
-      createdAt: Date.now()
-    };
-    
-    this.rooms.set(roomId, room);
-    
-    // Respond with success
-    this.sendToSocket(socket, {
-      type: 'room-created',
-      roomId,
-      roomName: room.name
+      createdAt: new Date(),
+      lastActive: new Date()
     });
     
-    console.log(`Room created: ${roomId} (${room.name})`);
+    log(`Room ${roomId} created by client ${ws.clientId}`, 'websocket');
+    
+    // Send confirmation
+    ws.send(JSON.stringify({
+      type: 'room_created',
+      roomId
+    }));
   }
   
   /**
-   * Handle join room requests
-   * @param socket WebSocket connection
+   * Handle join room request
+   * @param ws WebSocket connection
    * @param data Message data
-   * @param socketId Socket identifier
    */
-  private handleJoinRoom(socket: WebSocket, data: any, socketId: string) {
-    const { roomId, participantName, isPublisher = true } = data;
-    const participantId = data.participantId || socketId;
+  private handleJoinRoom(ws: WebSocketWithId, data: any): void {
+    const roomId = data.roomId;
+    const participantName = data.participantName || 'Anonymous';
+    const isPublisher = data.isPublisher !== false; // Default to true
     
     // Check if room exists
-    const room = this.rooms.get(roomId);
-    if (!room) {
-      // Create the room if it doesn't exist and auto-create is set
-      if (data.autoCreate) {
-        this.handleCreateRoom(socket, data, socketId);
-        // Now the room should exist, get it again
-        const newRoom = this.rooms.get(roomId);
-        if (!newRoom) {
-          this.sendToSocket(socket, {
-            type: 'error',
-            error: 'Failed to create room'
-          });
-          return;
-        }
-        
-        // Continue with the new room
-        this.addParticipantToRoom(newRoom, socket, participantId, participantName, isPublisher);
-        return;
-      }
-      
-      // Room doesn't exist and auto-create is not enabled
-      this.sendToSocket(socket, {
+    if (!this.rooms.has(roomId)) {
+      ws.send(JSON.stringify({
         type: 'error',
-        error: 'Room does not exist'
-      });
+        message: 'Room does not exist'
+      }));
       return;
     }
     
-    // Add participant to the room
-    this.addParticipantToRoom(room, socket, participantId, participantName, isPublisher);
-  }
-  
-  /**
-   * Add a participant to a room
-   * @param room Room to add participant to
-   * @param socket WebSocket connection
-   * @param participantId Participant identifier
-   * @param participantName Participant name
-   * @param isPublisher Whether the participant can publish (send data)
-   */
-  private addParticipantToRoom(
-    room: Room, 
-    socket: WebSocket, 
-    participantId: string, 
-    participantName: string = `User-${participantId.substring(0, 6)}`,
-    isPublisher: boolean = true
-  ) {
-    // Create participant object
+    // Get room
+    const room = this.rooms.get(roomId)!;
+    
+    // Check if already in a room
+    const existingRoomId = this.getRoomIdForParticipant(ws.clientId);
+    
+    if (existingRoomId) {
+      // Leave existing room first
+      this.handleLeaveRoom(ws);
+    }
+    
+    // Create participant
     const participant: Participant = {
-      id: participantId,
+      id: ws.clientId,
+      ws,
       name: participantName,
-      socket,
-      isPublisher
+      isPublisher,
+      joinedAt: new Date(),
+      status: 'active'
     };
     
-    // Add to the room
-    room.participants.set(participantId, participant);
+    // Add to room
+    room.participants.set(ws.clientId, participant);
+    room.lastActive = new Date();
     
-    // Notify the participant they've joined
-    this.sendToSocket(socket, {
-      type: 'room-joined',
-      roomId: room.id,
-      roomName: room.name,
-      participantId,
-      participantName
-    });
+    // Add to clients
+    this.clients.set(ws.clientId, participant);
     
-    // Notify other participants about the new participant
-    this.broadcastToRoom(room, {
-      type: 'participant-joined',
-      roomId: room.id,
-      participantId,
-      participantName
-    }, participantId); // Exclude the new participant
+    log(`Participant ${ws.clientId} (${participantName}) joined room ${roomId}`, 'websocket');
     
-    console.log(`Participant ${participantName} (${participantId}) joined room ${room.name} (${room.id})`);
-  }
-  
-  /**
-   * Handle leave room requests
-   * @param socketId Socket identifier
-   * @param currentRoom Current room the participant is in
-   * @param participantId Participant identifier
-   */
-  private handleLeaveRoom(
-    socketId: string, 
-    currentRoom: Room | null,
-    participantId: string | null
-  ) {
-    if (!currentRoom || !participantId) {
-      return;
-    }
+    // Get all participants
+    const participants = this.getParticipantsInRoom(roomId);
     
-    this.removeParticipantFromRoom(currentRoom, participantId);
-  }
-  
-  /**
-   * Remove a participant from a room
-   * @param room Room to remove participant from
-   * @param participantId Participant identifier
-   */
-  private removeParticipantFromRoom(room: Room, participantId: string) {
-    // Get the participant
-    const participant = room.participants.get(participantId);
-    if (!participant) {
-      return;
-    }
-    
-    // Remove from the room
-    room.participants.delete(participantId);
-    
-    // Notify the participant they've left
-    this.sendToSocket(participant.socket, {
-      type: 'room-left',
-      roomId: room.id,
-      participantId
-    });
+    // Send confirmation to client
+    ws.send(JSON.stringify({
+      type: 'room_joined',
+      roomId,
+      participants
+    }));
     
     // Notify other participants
-    this.broadcastToRoom(room, {
-      type: 'participant-left',
-      roomId: room.id,
-      participantId,
-      participantName: participant.name
-    });
-    
-    console.log(`Participant ${participant.name} (${participantId}) left room ${room.name} (${room.id})`);
-    
-    // Remove room if empty
-    if (room.participants.size === 0) {
-      this.rooms.delete(room.id);
-      console.log(`Room ${room.name} (${room.id}) deleted as it's empty`);
-    }
+    this.broadcastToRoom(roomId, {
+      type: 'participant_joined',
+      roomId,
+      participantId: ws.clientId,
+      participantName: participantName
+    }, ws.clientId);
   }
   
   /**
-   * Handle send message requests
-   * @param data Message data
-   * @param currentRoom Current room the participant is in
-   * @param participantId Participant identifier
+   * Handle leave room request
+   * @param ws WebSocket connection
    */
-  private handleSendMessage(
-    data: any, 
-    currentRoom: Room | null,
-    participantId: string | null
-  ) {
-    if (!currentRoom || !participantId) {
-      return;
-    }
+  private handleLeaveRoom(ws: WebSocketWithId): void {
+    const participant = this.clients.get(ws.clientId);
     
-    // Get the participant
-    const participant = currentRoom.participants.get(participantId);
     if (!participant) {
-      return;
-    }
-    
-    // Check if the participant can publish
-    if (!participant.isPublisher) {
-      this.sendToSocket(participant.socket, {
+      ws.send(JSON.stringify({
         type: 'error',
-        error: 'You do not have permission to send messages'
-      });
+        message: 'Not in a room'
+      }));
       return;
     }
     
-    // Broadcast to all or specific participant
-    if (data.targetParticipantId) {
-      // Send to specific participant
-      const targetParticipant = currentRoom.participants.get(data.targetParticipantId);
-      if (targetParticipant) {
-        this.sendToSocket(targetParticipant.socket, {
-          type: 'message',
-          roomId: currentRoom.id,
-          senderId: participantId,
-          senderName: participant.name,
-          content: data.content,
-          timestamp: Date.now(),
-          metadata: data.metadata
-        });
+    const roomId = this.getRoomIdForParticipant(ws.clientId);
+    
+    if (!roomId) {
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: 'Not in a room'
+      }));
+      return;
+    }
+    
+    // Get room
+    const room = this.rooms.get(roomId);
+    
+    if (room) {
+      // Remove from room
+      room.participants.delete(ws.clientId);
+      room.lastActive = new Date();
+      
+      log(`Participant ${ws.clientId} (${participant.name}) left room ${roomId}`, 'websocket');
+      
+      // Notify other participants
+      this.broadcastToRoom(roomId, {
+        type: 'participant_left',
+        roomId,
+        participantId: ws.clientId,
+        participantName: participant.name
+      });
+      
+      // Delete room if empty
+      if (room.participants.size === 0) {
+        this.rooms.delete(roomId);
+        log(`Room ${roomId} deleted (no participants)`, 'websocket');
       }
-    } else {
-      // Broadcast to room
-      this.broadcastToRoom(currentRoom, {
-        type: 'message',
-        roomId: currentRoom.id,
-        senderId: participantId,
-        senderName: participant.name,
-        content: data.content,
-        timestamp: Date.now(),
-        metadata: data.metadata
-      });
-    }
-  }
-  
-  /**
-   * Handle state update requests (for shared state)
-   * @param data Message data
-   * @param currentRoom Current room the participant is in
-   * @param participantId Participant identifier
-   */
-  private handleUpdateState(
-    data: any, 
-    currentRoom: Room | null,
-    participantId: string | null
-  ) {
-    if (!currentRoom || !participantId) {
-      return;
     }
     
-    // Get the participant
-    const participant = currentRoom.participants.get(participantId);
-    if (!participant || !participant.isPublisher) {
-      return;
-    }
+    // Remove from clients
+    this.clients.delete(ws.clientId);
     
-    // Update room metadata
-    if (data.state) {
-      currentRoom.metadata = {
-        ...currentRoom.metadata,
-        ...data.state
-      };
-    }
-    
-    // Broadcast state update
-    this.broadcastToRoom(currentRoom, {
-      type: 'state-updated',
-      roomId: currentRoom.id,
-      state: data.state,
-      senderId: participantId,
-      timestamp: Date.now()
-    });
-  }
-  
-  /**
-   * Handle cursor update requests for collaborative editing
-   * @param data Message data
-   * @param currentRoom Current room the participant is in
-   * @param participantId Participant identifier
-   */
-  private handleCursorUpdate(
-    data: any, 
-    currentRoom: Room | null,
-    participantId: string | null
-  ) {
-    if (!currentRoom || !participantId) {
-      return;
-    }
-    
-    // Get the participant
-    const participant = currentRoom.participants.get(participantId);
-    if (!participant) {
-      return;
-    }
-    
-    // Broadcast cursor position to others
-    this.broadcastToRoom(currentRoom, {
-      type: 'cursor-update',
-      roomId: currentRoom.id,
-      senderId: participantId,
-      senderName: participant.name,
-      position: data.position,
-      timestamp: Date.now()
-    }, participantId); // Don't send back to sender
-  }
-  
-  /**
-   * Handle code update requests for collaborative editing
-   * @param data Message data
-   * @param currentRoom Current room the participant is in
-   * @param participantId Participant identifier
-   */
-  private handleCodeUpdate(
-    data: any, 
-    currentRoom: Room | null,
-    participantId: string | null
-  ) {
-    if (!currentRoom || !participantId) {
-      return;
-    }
-    
-    // Get the participant
-    const participant = currentRoom.participants.get(participantId);
-    if (!participant || !participant.isPublisher) {
-      return;
-    }
-    
-    // Broadcast code update
-    this.broadcastToRoom(currentRoom, {
-      type: 'code-update',
-      roomId: currentRoom.id,
-      senderId: participantId,
-      senderName: participant.name,
-      fileId: data.fileId,
-      content: data.content,
-      changes: data.changes,
-      timestamp: Date.now()
-    });
+    // Send confirmation
+    ws.send(JSON.stringify({
+      type: 'room_left'
+    }));
   }
   
   /**
    * Handle get participants request
-   * @param socket WebSocket connection
-   * @param currentRoom Current room the participant is in
+   * @param ws WebSocket connection
+   * @param data Message data
    */
-  private handleGetParticipants(socket: WebSocket, currentRoom: Room | null) {
-    if (!currentRoom) {
-      this.sendToSocket(socket, {
+  private handleGetParticipants(ws: WebSocketWithId, data: any): void {
+    const roomId = data.roomId;
+    
+    // Check if room exists
+    if (!this.rooms.has(roomId)) {
+      ws.send(JSON.stringify({
         type: 'error',
-        error: 'Not in a room'
-      });
+        message: 'Room does not exist'
+      }));
       return;
     }
     
-    // Get participants list (without socket objects)
-    const participants = Array.from(currentRoom.participants.values()).map(p => ({
-      id: p.id,
-      name: p.name,
-      isPublisher: p.isPublisher
-    }));
+    // Get participants
+    const participants = this.getParticipantsInRoom(roomId);
     
-    // Send participants list
-    this.sendToSocket(socket, {
-      type: 'room-participants',
-      roomId: currentRoom.id,
+    // Send response
+    ws.send(JSON.stringify({
+      type: 'participants',
+      roomId,
       participants
-    });
+    }));
   }
   
   /**
-   * Handle disconnect
-   * @param socketId Socket identifier
-   * @param currentRoom Current room the participant is in
-   * @param participantId Participant identifier
+   * Handle status update request
+   * @param ws WebSocket connection
+   * @param data Message data
    */
-  private handleDisconnect(
-    socketId: string, 
-    currentRoom: Room | null,
-    participantId: string | null
-  ) {
-    if (currentRoom && participantId) {
-      this.removeParticipantFromRoom(currentRoom, participantId);
+  private handleStatusUpdate(ws: WebSocketWithId, data: any): void {
+    const status = data.status;
+    const roomId = this.getRoomIdForParticipant(ws.clientId);
+    
+    if (!roomId) {
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: 'Not in a room'
+      }));
+      return;
+    }
+    
+    // Get participant
+    const participant = this.clients.get(ws.clientId);
+    
+    if (participant) {
+      // Update status
+      participant.status = status;
+      
+      // Notify other participants
+      this.broadcastToRoom(roomId, {
+        type: 'status_update',
+        roomId,
+        participantId: ws.clientId,
+        status
+      });
     }
   }
   
   /**
-   * Send a message to a specific WebSocket
-   * @param socket WebSocket to send to
-   * @param data Data to send
+   * Handle cursor update request
+   * @param ws WebSocket connection
+   * @param data Message data
    */
-  private sendToSocket(socket: WebSocket, data: any) {
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(data));
+  private handleCursorUpdate(ws: WebSocketWithId, data: any): void {
+    const position = data.position;
+    const roomId = this.getRoomIdForParticipant(ws.clientId);
+    
+    if (!roomId) {
+      return;
     }
+    
+    // Notify other participants
+    this.broadcastToRoom(roomId, {
+      type: 'cursor_update',
+      roomId,
+      senderId: ws.clientId,
+      position
+    }, ws.clientId);
+  }
+  
+  /**
+   * Handle code update request
+   * @param ws WebSocket connection
+   * @param data Message data
+   */
+  private handleCodeUpdate(ws: WebSocketWithId, data: any): void {
+    const fileId = data.fileId;
+    const content = data.content;
+    const roomId = this.getRoomIdForParticipant(ws.clientId);
+    
+    if (!roomId) {
+      return;
+    }
+    
+    // Get participant
+    const participant = this.clients.get(ws.clientId);
+    
+    if (!participant || !participant.isPublisher) {
+      return; // Only publishers can update code
+    }
+    
+    // Notify other participants
+    this.broadcastToRoom(roomId, {
+      type: 'code_update',
+      roomId,
+      senderId: ws.clientId,
+      senderName: participant.name,
+      fileId,
+      content
+    }, ws.clientId);
+  }
+  
+  /**
+   * Handle chat message request
+   * @param ws WebSocket connection
+   * @param data Message data
+   */
+  private handleChatMessage(ws: WebSocketWithId, data: any): void {
+    const message = data.message;
+    const roomId = this.getRoomIdForParticipant(ws.clientId);
+    
+    if (!roomId) {
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: 'Not in a room'
+      }));
+      return;
+    }
+    
+    // Get participant
+    const participant = this.clients.get(ws.clientId);
+    
+    if (participant) {
+      // Broadcast to room
+      this.broadcastToRoom(roomId, {
+        type: 'chat_message',
+        roomId,
+        senderId: ws.clientId,
+        senderName: participant.name,
+        message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+  
+  /**
+   * Get the room ID for a participant
+   * @param clientId Client ID
+   * @returns Room ID or null
+   */
+  private getRoomIdForParticipant(clientId: string): string | null {
+    for (const [roomId, room] of this.rooms.entries()) {
+      if (room.participants.has(clientId)) {
+        return roomId;
+      }
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Get participants in a room
+   * @param roomId Room ID
+   * @returns Array of participants
+   */
+  private getParticipantsInRoom(roomId: string): any[] {
+    const room = this.rooms.get(roomId);
+    
+    if (!room) {
+      return [];
+    }
+    
+    const participants = [];
+    
+    for (const [id, participant] of room.participants) {
+      participants.push({
+        id,
+        name: participant.name,
+        isPublisher: participant.isPublisher,
+        joinedAt: participant.joinedAt.toISOString(),
+        status: participant.status
+      });
+    }
+    
+    return participants;
   }
   
   /**
    * Broadcast a message to all participants in a room
-   * @param room Room to broadcast to
-   * @param data Data to broadcast
-   * @param excludeParticipantId Optional participant ID to exclude
+   * @param roomId Room ID
+   * @param message Message to broadcast
+   * @param excludeClientId Client ID to exclude
    */
-  private broadcastToRoom(room: Room, data: any, excludeParticipantId?: string) {
-    for (const [id, participant] of room.participants.entries()) {
-      if (!excludeParticipantId || id !== excludeParticipantId) {
-        this.sendToSocket(participant.socket, data);
+  private broadcastToRoom(roomId: string, message: any, excludeClientId?: string): void {
+    const room = this.rooms.get(roomId);
+    
+    if (!room) {
+      return;
+    }
+    
+    const messageStr = JSON.stringify(message);
+    
+    for (const [clientId, participant] of room.participants) {
+      if (excludeClientId && clientId === excludeClientId) {
+        continue;
+      }
+      
+      try {
+        if (participant.ws.readyState === WebSocket.OPEN) {
+          participant.ws.send(messageStr);
+        }
+      } catch (error) {
+        log(`Error sending message to client ${clientId}: ${error}`, 'websocket');
       }
     }
   }
   
   /**
-   * Get a list of all rooms
-   * @returns Array of room information
+   * Get all rooms
+   * @returns Array of rooms
    */
-  getRooms() {
-    return Array.from(this.rooms.values()).map(room => ({
-      id: room.id,
-      name: room.name,
-      participantCount: room.participants.size,
-      createdAt: room.createdAt
-    }));
+  getRooms(): any[] {
+    const rooms = [];
+    
+    for (const [id, room] of this.rooms) {
+      rooms.push({
+        id,
+        participantCount: room.participants.size,
+        createdAt: room.createdAt.toISOString(),
+        lastActive: room.lastActive.toISOString()
+      });
+    }
+    
+    return rooms;
   }
   
   /**
    * Get a room by ID
-   * @param roomId Room identifier
-   * @returns Room if found, null otherwise
+   * @param roomId Room ID
+   * @returns Room or null
    */
-  getRoom(roomId: string) {
+  getRoom(roomId: string): any | null {
     const room = this.rooms.get(roomId);
+    
     if (!room) {
       return null;
     }
     
     return {
       id: room.id,
-      name: room.name,
-      participants: Array.from(room.participants.values()).map(p => ({
-        id: p.id,
-        name: p.name,
-        isPublisher: p.isPublisher
-      })),
-      metadata: room.metadata,
-      createdAt: room.createdAt
+      participants: this.getParticipantsInRoom(roomId),
+      createdAt: room.createdAt.toISOString(),
+      lastActive: room.lastActive.toISOString()
     };
-  }
-  
-  /**
-   * Create a new room
-   * @param roomName Name of the room
-   * @param metadata Optional room metadata
-   * @returns Room information
-   */
-  createRoom(roomName: string, metadata?: Record<string, any>) {
-    const roomId = uuidv4();
-    const room: Room = {
-      id: roomId,
-      name: roomName,
-      participants: new Map(),
-      metadata,
-      createdAt: Date.now()
-    };
-    
-    this.rooms.set(roomId, room);
-    console.log(`Room created via API: ${roomId} (${roomName})`);
-    
-    return {
-      id: roomId,
-      name: roomName,
-      participantCount: 0,
-      createdAt: room.createdAt
-    };
-  }
-  
-  /**
-   * Close a room
-   * @param roomId Room identifier
-   * @returns Boolean indicating success
-   */
-  closeRoom(roomId: string): boolean {
-    const room = this.rooms.get(roomId);
-    if (!room) {
-      return false;
-    }
-    
-    // Notify all participants
-    this.broadcastToRoom(room, {
-      type: 'room-closed',
-      roomId
-    });
-    
-    // Remove the room
-    this.rooms.delete(roomId);
-    console.log(`Room closed: ${roomId} (${room.name})`);
-    
-    return true;
-  }
-  
-  /**
-   * Send data to a specific participant or the entire room
-   * @param roomId Room identifier
-   * @param data Data to send
-   * @param participantId Optional participant to send to
-   * @returns Boolean indicating success
-   */
-  sendData(roomId: string, data: any, participantId?: string): boolean {
-    const room = this.rooms.get(roomId);
-    if (!room) {
-      return false;
-    }
-    
-    if (participantId) {
-      // Send to specific participant
-      const participant = room.participants.get(participantId);
-      if (!participant) {
-        return false;
-      }
-      
-      this.sendToSocket(participant.socket, data);
-    } else {
-      // Broadcast to all participants
-      this.broadcastToRoom(room, data);
-    }
-    
-    return true;
   }
 }
 
-// Export a singleton instance
-export const webSocketCollaboration = new WebSocketCollaboration();
+// Create a singleton instance
+export const webSocketRoomManager = new WebSocketRoomManager();

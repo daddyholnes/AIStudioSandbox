@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
 import { livekitHandler } from "./livekit";
 import { aiHandler } from "./ai";
-import { webSocketCollaboration } from "./services/websocket";
+import { webSocketRoomManager } from "./services/websocket";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
@@ -17,8 +17,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Initialize WebSocket collaboration service with the same HTTP server
-  // This will set up a different endpoint at /ws/collab
-  webSocketCollaboration.initialize(httpServer);
+  webSocketRoomManager.initialize(httpServer);
   
   // Handle WebSocket connections
   wss.on('connection', (ws) => {
@@ -388,7 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List all collaboration rooms
   app.get('/api/collab/rooms', (req, res) => {
     try {
-      const rooms = webSocketCollaboration.getRooms();
+      const rooms = webSocketRoomManager.getRooms();
       return res.status(200).json({ rooms });
     } catch (error) {
       console.error('Error listing rooms:', error);
@@ -403,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/collab/rooms/:roomId', (req, res) => {
     try {
       const { roomId } = req.params;
-      const room = webSocketCollaboration.getRoom(roomId);
+      const room = webSocketRoomManager.getRoom(roomId);
       
       if (!room) {
         return res.status(404).json({ message: 'Room not found' });
@@ -414,72 +413,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error getting room:', error);
       return res.status(500).json({ 
         message: 'Failed to get room details',
-        error: (error as Error).message
-      });
-    }
-  });
-  
-  // Create a collaboration room
-  app.post('/api/collab/rooms', (req, res) => {
-    try {
-      const { roomName, metadata } = req.body;
-      
-      if (!roomName) {
-        return res.status(400).json({ message: 'Room name is required' });
-      }
-      
-      const room = webSocketCollaboration.createRoom(roomName, metadata);
-      return res.status(201).json(room);
-    } catch (error) {
-      console.error('Error creating collaboration room:', error);
-      return res.status(500).json({ 
-        message: 'Failed to create room',
-        error: (error as Error).message
-      });
-    }
-  });
-  
-  // Close a collaboration room
-  app.delete('/api/collab/rooms/:roomId', (req, res) => {
-    try {
-      const { roomId } = req.params;
-      const success = webSocketCollaboration.closeRoom(roomId);
-      
-      if (!success) {
-        return res.status(404).json({ message: 'Room not found' });
-      }
-      
-      return res.status(200).json({ success: true });
-    } catch (error) {
-      console.error('Error closing room:', error);
-      return res.status(500).json({ 
-        message: 'Failed to close room',
-        error: (error as Error).message
-      });
-    }
-  });
-  
-  // Send data to a room or specific participant
-  app.post('/api/collab/rooms/:roomId/send', (req, res) => {
-    try {
-      const { roomId } = req.params;
-      const { data, participantId } = req.body;
-      
-      if (!data) {
-        return res.status(400).json({ message: 'Data is required' });
-      }
-      
-      const success = webSocketCollaboration.sendData(roomId, data, participantId);
-      
-      if (!success) {
-        return res.status(404).json({ message: participantId ? 'Room or participant not found' : 'Room not found' });
-      }
-      
-      return res.status(200).json({ success: true });
-    } catch (error) {
-      console.error('Error sending data:', error);
-      return res.status(500).json({ 
-        message: 'Failed to send data',
         error: (error as Error).message
       });
     }
