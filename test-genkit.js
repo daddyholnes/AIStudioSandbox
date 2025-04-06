@@ -19,6 +19,25 @@
  * - API key configuration
  * - Plugin initialization
  * - Flow definition capability
+ * 
+ * === NEXT STEPS ===
+ * 
+ * 1. Ensure your Gemini API key is set in your environment:
+ *    - Windows Command Prompt: set GEMINI_API_KEY=your_actual_key
+ *    - Windows PowerShell: $env:GEMINI_API_KEY = "your_actual_key"
+ *    - macOS/Linux: export GEMINI_API_KEY=your_actual_key
+ * 
+ * 2. Run the test script:
+ *    node test-genkit.js
+ * 
+ * 3. If you encounter errors related to the flow definition, try:
+ *    - Review the error message for specific parameter requirements
+ *    - Check if schema validation is needed for your input/output
+ * 
+ * 4. For additional troubleshooting:
+ *    - Run 'npm list @genkit-ai/core' to verify installed version
+ *    - Check Genkit documentation for your specific version
+ *    - Review exported methods to ensure compatibility
  */
 
 console.log('Testing Genkit Integration');
