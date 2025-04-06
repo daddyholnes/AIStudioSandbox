@@ -1,0 +1,91 @@
+Here's the corrected implementation pattern for Genkit 1.5.0 based on the error analysis and official documentation:
+
+Correct Genkit 1.5.0 Configuration
+1. Revised genkit.config.ts
+typescript
+import { genkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
+
+export default genkit({
+  plugins: [
+    googleAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      projectId: process.env.GOOGLE_CLOUD_PROJECT
+    })
+  ],
+  enableTracingAndMetrics: true
+});
+2. Fixed Flow Definition
+server/services/genkit.ts
+typescript
+import { defineFlow } from '@genkit-ai/core';
+import { z } from 'zod';
+import ai from '../../genkit.config'; // Import initialized instance
+
+export const codeAssistantFlow = defineFlow(
+  {
+    name: 'codeAssistantFlow',
+    inputSchema: z.object({
+      prompt: z.string(),
+      context: z.string().optional()
+    }),
+    outputSchema: z.string()
+  },
+  async ({ prompt, context }) => {
+    const { text } = await ai.generate({
+      model: 'gemini-2.0-flash',
+      prompt: `Code request: ${prompt}\nContext: ${context || 'none'}`
+    });
+    return text;
+  }
+);
+Key Changes from Your Implementation
+Your Code	Correct Approach
+apiKey(config)	genkit(config)
+Missing handler	Added async handler
+Separate config	Unified instance
+Required Environment Variables
+bash
+# .env file
+GEMINI_API_KEY=your_actual_key
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+Verification Steps
+Check Installed Packages
+
+bash
+npm list @genkit-ai/core @genkit-ai/googleai
+# Should show:
+# ├── @genkit-ai/core@1.5.0
+# └── @genkit-ai/googleai@1.5.0
+Test Flow Execution
+
+typescript
+// Add to genkit.ts
+async function testFlow() {
+  const result = await codeAssistantFlow({
+    prompt: "Create React counter component",
+    context: "Use TypeScript and hooks"
+  });
+  console.log(result);
+}
+
+testFlow();
+Run Developer UI
+
+bash
+genkit start -- ts-node server/services/genkit.ts
+Error Resolution Summary
+Cause
+Incorrect flow definition signature in Genkit 1.5.0. The defineFlow function requires:
+
+Configuration object with name and schemas
+
+Handler function as second parameter
+
+Solution
+Use the dual-parameter syntax:
+
+typescript
+defineFlow(configObject, handlerFunction)
+This pattern maintains compatibility with your existing session management and WebSocket integration while adhering to Genkit 1.5.0 requirements.
