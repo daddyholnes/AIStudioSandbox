@@ -1,64 +1,68 @@
-import { useEffect, useRef } from 'react';
-import * as monaco from 'monaco-editor';
+import React, { useState, useEffect } from 'react';
+import Editor from './Editor';
 
 interface CodeEditorProps {
   content: string;
   language: string;
-  onChange: (value: string) => void;
+  onChange: (content: string) => void;
+  onCursorPositionChange?: (position: { line: number, column: number }) => void;
+  remoteCursors?: Array<{
+    id: string;
+    name: string;
+    color: string;
+    position: { line: number, column: number };
+  }>;
 }
 
-const CodeEditor = ({ content, language, onChange }: CodeEditorProps) => {
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  
+const CodeEditor: React.FC<CodeEditorProps> = ({
+  content,
+  language,
+  onChange,
+  onCursorPositionChange,
+  remoteCursors = []
+}) => {
+  const [value, setValue] = useState(content);
+
+  // Update local state when content prop changes
   useEffect(() => {
-    if (containerRef.current) {
-      // Dispose of previous editor instance if it exists
-      if (editorRef.current) {
-        editorRef.current.dispose();
-      }
-      
-      // Create new editor
-      editorRef.current = monaco.editor.create(containerRef.current, {
-        value: content,
-        language,
-        theme: 'vs-dark',
-        automaticLayout: true,
-        minimap: {
-          enabled: true,
-        },
-        scrollBeyondLastLine: false,
-        fontSize: 14,
-        lineNumbers: 'on',
-        tabSize: 2,
-      });
-      
-      // Set up change handler
-      editorRef.current.onDidChangeModelContent(() => {
-        const value = editorRef.current?.getValue() || '';
-        onChange(value);
-      });
-    }
-    
-    return () => {
-      // Cleanup on unmount
-      if (editorRef.current) {
-        editorRef.current.dispose();
-      }
-    };
-  }, [language]); // Only re-initialize when language changes
-  
-  // Update content when it changes externally
-  useEffect(() => {
-    if (editorRef.current) {
-      const currentValue = editorRef.current.getValue();
-      if (content !== currentValue) {
-        editorRef.current.setValue(content);
-      }
-    }
+    setValue(content);
   }, [content]);
-  
-  return <div ref={containerRef} className="code-editor" />;
+
+  // Handle code changes
+  const handleChange = (newValue: string) => {
+    setValue(newValue);
+    onChange(newValue);
+  };
+
+  return (
+    <div className="h-full relative">
+      <Editor
+        initialValue={value}
+        language={language}
+        onChange={handleChange}
+        height="100%"
+      />
+      
+      {/* Placeholder for remote cursor indicators */}
+      {remoteCursors && remoteCursors.length > 0 && (
+        <div className="absolute top-2 right-2 bg-background/70 border rounded p-1 text-xs">
+          {remoteCursors.map(cursor => (
+            <div 
+              key={cursor.id} 
+              className="flex items-center mb-1 last:mb-0"
+              title={`${cursor.name} is editing`}
+            >
+              <div 
+                className="w-3 h-3 rounded-full mr-1" 
+                style={{ backgroundColor: cursor.color }}
+              ></div>
+              <span>{cursor.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default CodeEditor;

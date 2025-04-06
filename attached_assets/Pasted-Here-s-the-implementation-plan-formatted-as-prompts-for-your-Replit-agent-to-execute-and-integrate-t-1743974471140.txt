@@ -1,0 +1,163 @@
+Here’s the implementation plan formatted as prompts for your Replit agent to execute and integrate the required features into AIStudioSandbox:
+
+1. Editor Panel Implementation
+Prompt for Replit Agent:
+
+bash
+# Install CodeMirror dependencies
+npm install @uiw/react-codemirror @codemirror/lang-javascript @codemirror/lang-python @codemirror/theme-one-dark
+typescript
+// Create Editor component (client/src/components/Editor.tsx)
+import CodeMirror from '@uiw/react-codemirror';
+import { javascript } from '@codemirror/lang-javascript';
+import { oneDark } from '@codemirror/theme-one-dark';
+
+export default function CodeEditor() {
+  const [code, setCode] = useState(localStorage.getItem('currentCode') || '');
+
+  return <CodeMirror
+    value={code}
+    height="100%"
+    extensions={[javascript()]}
+    theme={oneDark}
+    onChange={(value) => {
+      setCode(value);
+      localStorage.setItem('currentCode', value);
+      ws.send(JSON.stringify({ type: 'codeUpdate', content: value }));
+    }}
+  />;
+}
+2. Terminal Implementation
+Prompt for Replit Agent:
+
+bash
+# Install Xterm.js dependencies
+npm install xterm @xterm/addon-fit @xterm/addon-webgl
+typescript
+// Create Terminal component (client/src/components/Terminal.tsx)
+import { Terminal } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+
+export function initTerminal(element: HTMLElement) {
+  const term = new Terminal({ fontFamily: 'Fira Code' });
+  const fitAddon = new FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(element);
+  fitAddon.fit();
+  
+  term.onData(data => ws.send(JSON.stringify({ 
+    type: 'terminalInput', 
+    data: Buffer.from(data).toString('base64') 
+  })));
+}
+3. Run Button Execution
+Prompt for Replit Agent:
+
+bash
+# Install Docker for server-side code execution
+sudo apt-get install docker.io
+sudo usermod -aG docker ${USER}
+typescript
+// Implement code execution service (server/services/execution.ts)
+import { exec } from 'child_process';
+
+export async function executeCode(code: string, lang: string) {
+  const container = await docker.createContainer({
+    Image: `code-exec-${lang}`,
+    Cmd: ['sh', '-c', `echo "${code}" > app && run-command`],
+    HostConfig: { AutoRemove: true }
+  });
+  
+  return new Promise((resolve) => {
+    container.attach({ stream: true, stdout: true }, (err, stream) => {
+      stream.pipe(process.stdout);
+      container.start(() => resolve(stream));
+    });
+  });
+}
+4. Extension Management
+Prompt for Replit Agent:
+
+typescript
+// Create extension installation endpoint (server/routes/extensions.ts)
+router.post('/install', async (req, res) => {
+  const { pkg } = req.body;
+  exec(`npm install ${pkg}`, { cwd: process.cwd() }, (error) => {
+    if(error) return res.status(500).send(error);
+    res.sendStatus(200);
+  });
+});
+5. AI Prompt History
+Prompt for Replit Agent:
+
+typescript
+// Add prompt saving utility (client/src/utils/promptHistory.ts)
+export const savePrompt = async (prompt: string) => {
+  localStorage.setItem('lastPrompt', prompt);
+  const db = await openDB('PromptDB', 1, {
+    upgrade(db) {
+      db.createObjectStore('prompts', { keyPath: 'id' });
+    }
+  });
+  await db.add('prompts', { id: Date.now(), content: prompt });
+};
+6. WebSocket Collaboration Fix
+Prompt for Replit Agent:
+
+typescript
+// Fix WebSocket collaboration logic (server/websocket.ts)
+wsServer.on('connection', (socket) => {
+  socket.on('codeUpdate', (code) => {
+    const doc = new Y.Doc();
+    const yText = doc.getText('codemirror');
+    Y.applyUpdate(doc, code);
+    yText.observe(() => {
+      wsServer.broadcast(Y.encodeStateAsUpdate(doc));
+    });
+  });
+});
+7. Genkit Flow Implementation
+Prompt for Replit Agent:
+
+typescript
+// Implement Genkit flow for code analysis (server/services/genkit.ts)
+const codeAnalysisFlow = ai.defineFlow({
+  name: 'codeAnalysis',
+  inputSchema: z.string(),
+  outputSchema: z.object({
+    issues: z.array(z.string()),
+    suggestions: z.array(z.string())
+  }),
+}, async ({ input }) => {
+  const lintResult = eslint.verify(input);
+  const aiReview = await ai.generate({
+    model: 'gemini-2.0',
+    prompt: `Analyze code issues based on the following lint results:\n${lintResult}`
+  });
+  
+  return { issues: lintResult, suggestions: aiReview.text };
+});
+Implementation Priority Roadmap
+Core Functionality:
+
+Editor Panel (CodeMirror)
+
+Terminal (Xterm.js)
+
+Run Button (Docker-based execution)
+
+AI Integration:
+
+Genkit flows (Code analysis)
+
+AI prompt history (IndexedDB)
+
+Collaboration Features:
+
+WebSocket collaboration (Y.js conflict resolution)
+
+Extension Ecosystem:
+
+NPM registry integration (Install extensions dynamically)
+
+These prompts are actionable steps for your Replit agent to implement the missing features in AIStudioSandbox while adhering to your requirements. Let me know if you need further clarification or additional prompts!

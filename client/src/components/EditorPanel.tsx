@@ -211,9 +211,10 @@ const EditorPanel = ({
                 content={editorContent}
                 language={getLanguage(activeTab)}
                 onChange={onEditorChange}
-                // We'll assume this is available in an extended version of CodeEditor
-                // onCursorPositionChange={handleCursorPositionChange}
-                // remoteCursors={remoteUsers.filter(u => u.position)}
+                onCursorPositionChange={handleCursorPositionChange}
+                remoteCursors={remoteUsers.filter((u): u is RemoteUser & { position: { line: number, column: number } } => 
+                  u.position !== undefined
+                )}
               />
             )}
           </div>

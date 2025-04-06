@@ -23,228 +23,272 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
-  const [apiKey, setApiKey] = useState('');
-  const [activeTab, setActiveTab] = useState('general');
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
+  // State for selected models
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
   const [temperature, setTemperature] = useState(0.7);
-  const [maxOutputTokens, setMaxOutputTokens] = useState(2048);
-  const [topK, setTopK] = useState(40);
-  const [topP, setTopP] = useState(0.95);
-  const [webSearch, setWebSearch] = useState(false);
-  const [thinkingEnabled, setThinkingEnabled] = useState(true);
+  
+  // State for AI options
+  const [webAccessEnabled, setWebAccessEnabled] = useState(false);
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  const [historyEnabled, setHistoryEnabled] = useState(true);
+  const [promptsEnabled, setPromptsEnabled] = useState(true);
+  const [genkitEnabled, setGenkitEnabled] = useState(true);
+  const [commandsEnabled, setCommandsEnabled] = useState(false);
+  
+  // State for appearance options
   const [darkMode, setDarkMode] = useState(true);
+  const [compactUI, setCompactUI] = useState(false);
   
-  const handleSave = () => {
-    // Save settings to local storage
-    const settings = {
-      model: selectedModel,
-      temperature,
-      maxOutputTokens,
-      topK,
-      topP,
-      webSearch,
-      thinkingEnabled,
-      darkMode,
-      apiKey: apiKey || undefined // Only save if provided
-    };
-    
-    localStorage.setItem('aiStudioSettings', JSON.stringify(settings));
-    
-    // Notify that settings are saved
-    console.log('Settings saved:', settings);
-    
-    // Close the settings panel
-    onClose();
-  };
+  // AI models
+  const googleModels = [
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+    { id: 'gemini-1.5-pro-vision', name: 'Gemini 1.5 Pro Vision' },
+    { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro' },
+    { id: 'codey-text-code-generation', name: 'Codey Text-Code Generation' },
+    { id: 'imagen-3.0', name: 'Imagen 3.0' },
+  ];
   
+  const partnerModels = [
+    { id: 'claude-3-haiku', name: 'Claude 3 Haiku (Anthropic)' },
+    { id: 'claude-3-sonnet', name: 'Claude 3 Sonnet (Anthropic)' },
+    { id: 'jamba-1.5', name: 'Jamba 1.5 (AI21 Labs)' },
+    { id: 'llama-3-8b', name: 'Llama 3 8B (Meta)' }, 
+    { id: 'mistral-medium', name: 'Mistral Medium (Mistral AI)' },
+    { id: 'mistral-large', name: 'Mistral Large (Mistral AI)' },
+  ];
+
   return (
-    <Card className="w-full max-w-2xl h-[90vh] overflow-y-auto">
-      <CardHeader className="flex flex-row justify-between items-center">
-        <div>
-          <CardTitle>Settings</CardTitle>
-          <CardDescription>Configure your AI Studio environment</CardDescription>
-        </div>
+    <div className="h-full overflow-auto bg-background p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">Settings</h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
-          <X />
+          <X className="h-4 w-4" />
         </Button>
-      </CardHeader>
+      </div>
       
-      <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="model">Model Configuration</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-            <TabsTrigger value="api">API Keys</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="ai" className="w-full">
+        <TabsList className="grid grid-cols-3 mb-4">
+          <TabsTrigger value="ai">AI</TabsTrigger>
+          <TabsTrigger value="appearance">Appearance</TabsTrigger>
+          <TabsTrigger value="about">About</TabsTrigger>
+        </TabsList>
+        
+        {/* AI Settings Tab */}
+        <TabsContent value="ai" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Model Selection</CardTitle>
+              <CardDescription>Select the AI model to use for generating content</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ai-model">Google AI Model</Label>
+                <Select 
+                  value={selectedModel}
+                  onValueChange={setSelectedModel}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <optgroup label="Google Models">
+                      {googleModels.map(model => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Partner Models">
+                      {partnerModels.map(model => (
+                        <SelectItem key={model.id} value={model.id}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </optgroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <Label htmlFor="temperature">Temperature: {temperature.toFixed(1)}</Label>
+                </div>
+                <Slider 
+                  id="temperature"
+                  min={0} 
+                  max={1} 
+                  step={0.1} 
+                  value={[temperature]}
+                  onValueChange={(values) => setTemperature(values[0])}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Lower values produce more predictable outputs, higher values more creative
+                </p>
+              </div>
+            </CardContent>
+          </Card>
           
-          <TabsContent value="general">
-            <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Chat Options</CardTitle>
+              <CardDescription>Configure how the AI assistant works</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label htmlFor="darkMode">Dark Mode</Label>
+                <div className="space-y-0.5">
+                  <Label htmlFor="history">Chat History</Label>
+                  <p className="text-xs text-muted-foreground">Save chat history for later reference</p>
+                </div>
                 <Switch 
-                  id="darkMode" 
-                  checked={darkMode} 
+                  id="history"
+                  checked={historyEnabled}
+                  onCheckedChange={setHistoryEnabled}
+                />
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="web-access">Web Access</Label>
+                  <p className="text-xs text-muted-foreground">Allow AI to search and access web content</p>
+                </div>
+                <Switch 
+                  id="web-access"
+                  checked={webAccessEnabled}
+                  onCheckedChange={setWebAccessEnabled}
+                />
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="thinking">Thinking (Chain of Thought)</Label>
+                  <p className="text-xs text-muted-foreground">Show AI's step-by-step reasoning</p>
+                </div>
+                <Switch 
+                  id="thinking"
+                  checked={thinkingEnabled}
+                  onCheckedChange={setThinkingEnabled}
+                />
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="prompts">Saved Prompts</Label>
+                  <p className="text-xs text-muted-foreground">Access to template prompts</p>
+                </div>
+                <Switch 
+                  id="prompts"
+                  checked={promptsEnabled}
+                  onCheckedChange={setPromptsEnabled}
+                />
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="genkit">Genkit Integration</Label>
+                  <p className="text-xs text-muted-foreground">Use Google Genkit for advanced flows</p>
+                </div>
+                <Switch 
+                  id="genkit"
+                  checked={genkitEnabled}
+                  onCheckedChange={setGenkitEnabled}
+                />
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="commands">Commands</Label>
+                  <p className="text-xs text-muted-foreground">Enable slash commands in chat</p>
+                </div>
+                <Switch 
+                  id="commands"
+                  checked={commandsEnabled}
+                  onCheckedChange={setCommandsEnabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Appearance Tab */}
+        <TabsContent value="appearance" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+              <CardDescription>Customize the look and feel of the application</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="dark-mode">Dark Mode</Label>
+                  <p className="text-xs text-muted-foreground">Enable dark mode for the interface</p>
+                </div>
+                <Switch 
+                  id="dark-mode"
+                  checked={darkMode}
                   onCheckedChange={setDarkMode}
                 />
               </div>
               
               <Separator />
               
-              <div>
-                <Label htmlFor="defaultModel">Default Model</Label>
-                <Select value={selectedModel} onValueChange={setSelectedModel}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
-                    <SelectItem value="gemini-2.0-pro">Gemini 2.0 Pro</SelectItem>
-                    <SelectItem value="gemini-2.0-pro-vision">Gemini 2.0 Pro Vision</SelectItem>
-                    <SelectItem value="gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro (Experimental)</SelectItem>
-                    <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                    <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
-                    <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="model">
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="temperature">Temperature: {temperature.toFixed(2)}</Label>
-                </div>
-                <Slider 
-                  id="temperature"
-                  min={0} 
-                  max={1} 
-                  step={0.01} 
-                  value={[temperature]} 
-                  onValueChange={(values) => setTemperature(values[0])}
-                />
-                <p className="text-xs text-gray-500">
-                  Controls randomness: Lower values are more focused and deterministic, higher values more creative.
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="maxOutputTokens">Max Output Tokens: {maxOutputTokens}</Label>
-                </div>
-                <Slider 
-                  id="maxOutputTokens"
-                  min={1} 
-                  max={4096} 
-                  step={1} 
-                  value={[maxOutputTokens]} 
-                  onValueChange={(values) => setMaxOutputTokens(values[0])}
-                />
-                <p className="text-xs text-gray-500">
-                  Maximum length of the model's response in tokens. Higher values allow for longer outputs.
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="topK">Top-K: {topK}</Label>
-                </div>
-                <Slider 
-                  id="topK"
-                  min={1} 
-                  max={100} 
-                  step={1} 
-                  value={[topK]} 
-                  onValueChange={(values) => setTopK(values[0])}
-                />
-                <p className="text-xs text-gray-500">
-                  Limits token selection to top K possibilities. Lower values create more focused responses.
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="topP">Top-P: {topP.toFixed(2)}</Label>
-                </div>
-                <Slider 
-                  id="topP"
-                  min={0} 
-                  max={1} 
-                  step={0.01} 
-                  value={[topP]} 
-                  onValueChange={(values) => setTopP(values[0])}
-                />
-                <p className="text-xs text-gray-500">
-                  Nucleus sampling: Only considers tokens with combined probability mass of P. Lower values create more focused responses.
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="advanced">
-            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="webSearch">Web Search (DeepSearch)</Label>
-                  <p className="text-sm text-gray-500">Allow AI to search the web for information</p>
+                  <Label htmlFor="compact-ui">Compact UI</Label>
+                  <p className="text-xs text-muted-foreground">Reduce spacing in the UI for more content</p>
                 </div>
                 <Switch 
-                  id="webSearch" 
-                  checked={webSearch} 
-                  onCheckedChange={setWebSearch}
+                  id="compact-ui"
+                  checked={compactUI}
+                  onCheckedChange={setCompactUI}
                 />
               </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="thinking">Thinking Access</Label>
-                  <p className="text-sm text-gray-500">Enable step-by-step reasoning for complex questions</p>
-                </div>
-                <Switch 
-                  id="thinking" 
-                  checked={thinkingEnabled} 
-                  onCheckedChange={setThinkingEnabled}
-                />
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="api">
-            <div className="space-y-4">
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* About Tab */}
+        <TabsContent value="about" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>About</CardTitle>
+              <CardDescription>AI Studio + Sandbox</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="apiKey">Google AI API Key</Label>
-                <Input 
-                  id="apiKey"
-                  type="password" 
-                  value={apiKey} 
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Enter your API key"
-                />
-                <p className="text-xs text-gray-500">
-                  Your API key is stored locally and never sent to our servers.
+                <h3 className="font-medium">AI Studio Sandbox</h3>
+                <p className="text-sm text-muted-foreground">
+                  AI Studio Sandbox is an innovative development environment that combines real-time collaboration, 
+                  intelligent code assistance, and cutting-edge AI technologies to help you build better applications.
+                </p>
+                
+                <h4 className="font-medium mt-4">Technologies</h4>
+                <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
+                  <li>React + TypeScript frontend</li>
+                  <li>Express backend</li>
+                  <li>Google AI integration</li>
+                  <li>WebSocket real-time collaboration</li>
+                  <li>CodeMirror editor</li>
+                </ul>
+                
+                <p className="text-sm mt-4">
+                  Version 0.1.0 (Alpha)
                 </p>
               </div>
-              
-              <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded">
-                <p className="text-sm text-blue-800 dark:text-blue-300">
-                  Note: You can use the environment-provided API keys if you don't have your own.
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-      
-      <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave}>Save Changes</Button>
-      </CardFooter>
-    </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
-
-export default SettingsPanel;
