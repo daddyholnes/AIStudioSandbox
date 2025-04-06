@@ -6,11 +6,12 @@
   "main": "test-genkit.js",
   "scripts": {
     "test": "node test-genkit.js",
-    "start": "node test-genkit.js"
+    "start": "node test-genkit.js",
+    "update": "npm install @genkit-ai/core@1.5.0 @genkit-ai/googleai@1.5.0"
   },
   "dependencies": {
-    "@genkit-ai/core": "latest",
-    "@genkit-ai/googleai": "latest"
+    "@genkit-ai/core": "^1.5.0",
+    "@genkit-ai/googleai": "^1.5.0"
   },
   "engines": {
     "node": ">=18.0.0"

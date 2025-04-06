@@ -15,13 +15,11 @@ if [ "$NODE_VERSION" -lt 18 ]; then
     exit 1
 fi
 
-# Check if npm packages are installed
-if [ ! -d "node_modules/@genkit-ai" ]; then
-    echo "Installing required dependencies..."
-    npm install @genkit-ai/core @genkit-ai/googleai
-fi
+# Check if dependencies are at the correct versions
+echo "Ensuring correct Genkit dependencies..."
+npm install @genkit-ai/core@1.5.0 @genkit-ai/googleai@1.5.0
 
-# Check if GEMINI_API_KEY is set (using this instead of GOOGLE_API_KEY)
+# Check if GEMINI_API_KEY is set
 if [ -z "$GEMINI_API_KEY" ]; then
     echo "Notice: GEMINI_API_KEY environment variable is not set. Using test key."
     echo "For production use, set your API key with: export GEMINI_API_KEY=your_key_here"
