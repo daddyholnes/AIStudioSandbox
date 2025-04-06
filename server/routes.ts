@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
-import * as WebSocket from "ws";
+import { WebSocketServer } from "ws";
 import { livekitHandler } from "./livekit";
 import { aiHandler } from "./ai";
 
@@ -23,13 +23,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
   // WebSocket server for LiveKit events
-  const wss = new WebSocket.Server({ server: httpServer });
+  const wss = new WebSocketServer({ 
+    server: httpServer,
+    path: '/ws' // Use a specific path to avoid conflicts with Vite's WebSocket
+  });
   
   // Handle WebSocket connections
-  wss.on('connection', (ws: WebSocket) => {
+  wss.on('connection', (ws) => {
     console.log('WebSocket client connected');
     
-    ws.on('message', (message: WebSocket.Data) => {
+    ws.on('message', (message) => {
       try {
         const data = JSON.parse(message.toString());
         console.log('Received message:', data);

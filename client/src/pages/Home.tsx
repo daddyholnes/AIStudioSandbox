@@ -7,6 +7,7 @@ import AIPanel from '@/components/AIPanel';
 import StatusBar from '@/components/StatusBar';
 import { ProjectFileInfo } from '@shared/schema';
 import { useQuery } from '@tanstack/react-query';
+import { sendWebSocketMessage, registerMessageHandler, unregisterMessageHandler } from '@/lib/websocket';
 
 // Sample initial files
 const initialFiles: ProjectFileInfo[] = [
@@ -95,6 +96,57 @@ const Home = () => {
   const [roomConnected, setRoomConnected] = useState<boolean>(false);
   const [roomName, setRoomName] = useState<string>('RM_hycBMAjmtGUb');
   const [aiModel, setAiModel] = useState<string>('gemini-2.0-flash-exp');
+  const [loading, setLoading] = useState<boolean>(false);
+  
+  // Set up WebSocket message handlers
+  useEffect(() => {
+    // Handle room token responses
+    registerMessageHandler('room-token', (data) => {
+      console.log('Room token received:', data);
+      setRoomName(data.roomName);
+      // Here you would connect to the room using the token
+      setRoomConnected(true);
+    });
+    
+    // Handle AI responses
+    registerMessageHandler('ai-response', (data) => {
+      console.log('AI response received:', data);
+      // You would process the AI response in the appropriate component
+    });
+    
+    // Handle errors
+    registerMessageHandler('error', (data) => {
+      console.error('WebSocket error received:', data.message);
+      // Display error to user
+    });
+    
+    // Clean up handlers on unmount
+    return () => {
+      unregisterMessageHandler('room-token');
+      unregisterMessageHandler('ai-response');
+      unregisterMessageHandler('error');
+    };
+  }, []);
+  
+  // Join a LiveKit room via WebSocket
+  const joinRoom = async (roomName: string, participantName: string = 'User') => {
+    try {
+      setLoading(true);
+      
+      // Send join-room message via WebSocket
+      await sendWebSocketMessage('join-room', { 
+        roomName,
+        participantName
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error joining room:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Find the selected file
   const findFile = (fileId: string, fileList: ProjectFileInfo[]): ProjectFileInfo | null => {
