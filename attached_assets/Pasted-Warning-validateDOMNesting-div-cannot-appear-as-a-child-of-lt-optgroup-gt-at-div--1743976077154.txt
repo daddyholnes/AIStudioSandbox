@@ -1,0 +1,107 @@
+Warning: validateDOMNesting(...): <div> cannot appear as a child of &lt;optgroup&gt;.
+    at div
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-A3M46JDS.js?v=1470ade3:41:13
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OR7UTWKI.js?v=1470ade3:52:11
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OR7UTWKI.js?v=1470ade3:33:11
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UBCUTOAU.js?v=1470ade3:118:15
+    at Provider (https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-LLRFDTCX.js?v=1470ade3:32:15)
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=1470ade3:1907:7
+    at _c11 (https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/src/components/ui/select.tsx:207:13)
+    at optgroup
+    at div
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-A3M46JDS.js?v=1470ade3:41:13
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OR7UTWKI.js?v=1470ade3:52:11
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OR7UTWKI.js?v=1470ade3:33:11
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UBCUTOAU.js?v=1470ade3:107:15
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=1470ade3:1818:13
+    at div
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OR7UTWKI.js?v=1470ade3:52:11
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OR7UTWKI.js?v=1470ade3:33:11
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UBCUTOAU.js?v=1470ade3:107:15
+    at Provider (https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-LLRFDTCX.js?v=1470ade3:32:15)
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=1470ade3:1362:58
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OR7UTWKI.js?v=1470ade3:52:11
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OR7UTWKI.js?v=1470ade3:33:11
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-A3M46JDS.js?v=1470ade3:41:13
+    at https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DU5P2R5W.js?v=1470ade3:2467:22
+    at SelectPortal
+    at _c7 (https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/src/components/ui/select.tsx:122:12)
+    at Provider (https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-LLRFDTCX.js?v=1470ade3:32:15)
+    at Provider (https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UBCUTOAU.js?v=1470ade3:37:15)
+    at CollectionProvider (https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UBCUTOAU.js?v=1470ade3:98:13)
+    at Provider (https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-LLRFDTCX.js?v=1470ade3:32:15)
+    at Provider (https://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DU5P2R5W.js?v=1470ade3:2140:15)
+    at Popper…
+Commands toggled to: true
+Genkit selected
+Thinking selected
+Web Access selected
+History selected
+WARNING: Invalid layout total size: 60%, 20%. Layout normalization will be applied.
+WARNING: Invalid layout total size: 60%, 25%. Layout normalization will be applied.
+Making final reconnection attempt...
+Connecting to WebSocket server at wss://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/ws/collab...
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration disconnected: 1006 
+Attempting to reconnect (1/5)...
+Reconnecting after 1924ms delay...
+Connecting to WebSocket server at wss://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/ws/collab...
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration disconnected: 1006 
+Attempting to reconnect (2/5)...
+Reconnecting after 4285ms delay...
+Connecting to WebSocket server at wss://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/ws/collab...
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration disconnected: 1006 
+Attempting to reconnect (3/5)...
+Cannot read properties of undefined (reading 'dimensions')
+Reconnecting after 8807ms delay...
+Connecting to WebSocket server at wss://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/ws/collab...
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration disconnected: 1006 
+Attempting to reconnect (4/5)...
+Reconnecting after 16509ms delay...
+Connecting to WebSocket server at wss://c940a8cb-5021-4e4e-88b7-60f761fbbc19-00-11l4ztpvsesre.janeway.replit.dev/ws/collab...
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration error: 
+Event {isTrusted: true}
+
+WebSocket collaboration disconnected: 1006 
+Attempting to reconnect (5/5)...
