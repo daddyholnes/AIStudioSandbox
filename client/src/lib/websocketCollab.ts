@@ -3,6 +3,7 @@
 // editing and real-time communication via WebSockets.
 
 import { EventEmitter } from 'events';
+import { z } from 'zod';
 
 type WebSocketEvent = 
   | 'connect'
@@ -27,6 +28,100 @@ interface Participant {
   status?: 'active' | 'idle' | 'away';
   joinedAt: string;
 }
+
+// Define Zod schemas for message validation
+const PositionSchema = z.object({
+  line: z.number(),
+  column: z.number(),
+});
+
+const BaseMessageSchema = z.object({
+  type: z.string(),
+  timestamp: z.number().optional(),
+});
+
+const MessageSchemas = {
+  client_id: BaseMessageSchema.extend({
+    type: z.literal('client_id'),
+    clientId: z.string(),
+  }),
+  
+  room_created: BaseMessageSchema.extend({
+    type: z.literal('room_created'),
+    roomId: z.string(),
+  }),
+  
+  room_joined: BaseMessageSchema.extend({
+    type: z.literal('room_joined'),
+    roomId: z.string(),
+    participants: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        isPublisher: z.boolean().optional(),
+        joinedAt: z.string(),
+        status: z.enum(['active', 'idle', 'away']).optional(),
+      })
+    ),
+  }),
+  
+  room_left: BaseMessageSchema.extend({
+    type: z.literal('room_left'),
+  }),
+  
+  participant_joined: BaseMessageSchema.extend({
+    type: z.literal('participant_joined'),
+    roomId: z.string(),
+    participantId: z.string(),
+    participantName: z.string(),
+  }),
+  
+  participant_left: BaseMessageSchema.extend({
+    type: z.literal('participant_left'),
+    roomId: z.string(),
+    participantId: z.string(),
+    participantName: z.string(),
+  }),
+  
+  cursor_update: BaseMessageSchema.extend({
+    type: z.literal('cursor_update'),
+    roomId: z.string(),
+    senderId: z.string(),
+    position: PositionSchema,
+  }),
+  
+  code_update: BaseMessageSchema.extend({
+    type: z.literal('code_update'),
+    roomId: z.string(),
+    senderId: z.string(),
+    senderName: z.string().optional(),
+    fileId: z.string(),
+    content: z.string(),
+  }),
+  
+  error: BaseMessageSchema.extend({
+    type: z.literal('error'),
+    message: z.string(),
+  }),
+  
+  pong: BaseMessageSchema.extend({
+    type: z.literal('pong'),
+  }),
+  
+  participants: BaseMessageSchema.extend({
+    type: z.literal('participants'),
+    roomId: z.string(),
+    participants: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        isPublisher: z.boolean().optional(),
+        joinedAt: z.string(),
+        status: z.enum(['active', 'idle', 'away']).optional(),
+      })
+    ),
+  }),
+};
 
 class WebSocketCollab extends EventEmitter {
   private socket: WebSocket | null = null;
@@ -88,54 +183,77 @@ class WebSocketCollab extends EventEmitter {
         
         this.socket.onmessage = (event) => {
           try {
-            const data = JSON.parse(event.data);
+            const rawData = JSON.parse(event.data);
+            
+            // Validate message structure and data types
+            if (!rawData || typeof rawData !== 'object' || !rawData.type) {
+              console.error('Invalid message format received:', rawData);
+              return;
+            }
+            
+            let data = rawData;
+            const messageType = rawData.type as string;
+            
+            // Additional validation with zod schemas when available
+            if (messageType in MessageSchemas) {
+              try {
+                // Validate against the appropriate schema
+                const schema = MessageSchemas[messageType as keyof typeof MessageSchemas];
+                data = schema.parse(rawData);
+                console.debug(`Validated message of type: ${messageType}`);
+              } catch (validationError) {
+                console.error(`Message validation failed for type ${messageType}:`, validationError);
+                // Continue with the original data but log the error
+                data = rawData;
+              }
+            }
             
             // Handle client ID assignment
-            if (data.type === 'client_id') {
+            if (messageType === 'client_id') {
               this.clientId = data.clientId;
             }
             
             // Handle room join confirmation
-            if (data.type === 'room_joined') {
+            if (messageType === 'room_joined') {
               this.roomId = data.roomId;
               this.emit('room-joined', data);
             }
             
             // Handle room leave confirmation
-            if (data.type === 'room_left') {
+            if (messageType === 'room_left') {
               this.roomId = null;
               this.emit('room-left', data);
             }
             
             // Handle participant joined event
-            if (data.type === 'participant_joined') {
+            if (messageType === 'participant_joined') {
               this.emit('participant-joined', data);
             }
             
             // Handle participant left event
-            if (data.type === 'participant_left') {
+            if (messageType === 'participant_left') {
               this.emit('participant-left', data);
             }
             
             // Handle cursor update event
-            if (data.type === 'cursor_update') {
+            if (messageType === 'cursor_update') {
               this.emit('cursor-update', data);
             }
             
             // Handle code update event
-            if (data.type === 'code_update') {
+            if (messageType === 'code_update') {
               this.emit('code-update', data);
             }
             
             // Handle ping response
-            if (data.type === 'pong') {
+            if (messageType === 'pong') {
               // Connection is alive, nothing to do
             }
             
             // Forward all messages as a generic message event
             this.emit('message', data);
           } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
+            console.error('Error processing WebSocket message:', error);
           }
         };
       } catch (error) {
@@ -163,7 +281,7 @@ class WebSocketCollab extends EventEmitter {
   }
   
   /**
-   * Attempt to reconnect to the WebSocket server
+   * Attempt to reconnect to the WebSocket server with improved reconnection logic
    */
   private attemptReconnect(): void {
     this.reconnecting = true;
@@ -179,19 +297,32 @@ class WebSocketCollab extends EventEmitter {
     if (this.reconnectAttempts <= this.maxReconnectAttempts) {
       console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
       
-      // Exponential backoff
-      const timeout = this.reconnectTimeout * Math.pow(1.5, this.reconnectAttempts - 1);
+      // Improved exponential backoff with jitter to prevent thundering herd
+      const jitter = Math.random() * 0.3 + 0.85; // Random between 0.85 and 1.15
+      const baseTimeout = this.reconnectTimeout * Math.pow(2, this.reconnectAttempts - 1);
+      const timeout = Math.min(baseTimeout * jitter, 30000); // Cap at 30 seconds
       
       this.reconnectTimer = setTimeout(() => {
+        console.log(`Reconnecting after ${Math.round(timeout)}ms delay...`);
+        
         this.connect()
           .then(() => {
+            console.log('WebSocket collaboration connected');
             // If we were in a room before, attempt to rejoin
             if (this.roomId && this.participantName) {
-              this.joinRoom(this.roomId, this.participantName);
+              console.log(`Attempting to rejoin room ${this.roomId}...`);
+              this.joinRoom(this.roomId, this.participantName)
+                .then(() => {
+                  console.log(`Successfully rejoined room ${this.roomId}`);
+                })
+                .catch(error => {
+                  console.error(`Failed to rejoin room: ${error.message}`);
+                });
             }
             this.reconnecting = false;
           })
-          .catch(() => {
+          .catch((error) => {
+            console.error(`Reconnection attempt failed: ${error.message}`);
             this.reconnecting = false;
             this.attemptReconnect();
           });
@@ -200,6 +331,15 @@ class WebSocketCollab extends EventEmitter {
       console.log('Failed to reconnect after maximum attempts');
       this.reconnecting = false;
       this.emit('error', new Error('Failed to reconnect after maximum attempts'));
+      
+      // After maximum attempts, we'll try one last time after a longer delay
+      setTimeout(() => {
+        console.log('Making final reconnection attempt...');
+        this.reconnectAttempts = 0;
+        this.connect().catch(error => {
+          console.error(`Final reconnection attempt failed: ${error.message}`);
+        });
+      }, 60000); // Wait 1 minute before final attempt
     }
   }
   
