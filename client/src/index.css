@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500&family=Roboto+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 12%;
+    --foreground: 0 0% 100%;
+    
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 100%;
+    
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 100%;
+    
+    --primary: 214 89% 52%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 0 0% 24%;
+    --muted-foreground: 0 0% 70%;
+    
+    --accent: 29 100% 48%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 0 0% 30%;
+    --input: 0 0% 24%;
+    --ring: 214 89% 52%;
+    
+    --radius: 0.25rem;
+    
+    --chart-1: 214 89% 52%;
+    --chart-2: 0 84% 60%;
+    --chart-3: 29 100% 48%;
+    --chart-4: 135 57% 33%;
+    --chart-5: 271 68% 63%;
+    
+    --sidebar-background: 0 0% 15%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 214 89% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 24%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 30%;
+    --sidebar-ring: 214 89% 52%;
+  }
+  
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply font-roboto antialiased bg-background text-foreground overflow-hidden h-screen;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-google-sans;
+  }
+  
+  pre, code {
+    @apply font-mono;
+  }
+}
+
+@layer components {
+  .code-editor {
+    @apply w-full h-full;
+  }
+  
+  .terminal-text {
+    @apply text-sm font-mono text-gray-300;
+  }
+  
+  .chat-message {
+    @apply mb-4;
+  }
+  
+  .sidebar-icon {
+    @apply text-white opacity-80 hover:opacity-100 transition-opacity;
+  }
+}
