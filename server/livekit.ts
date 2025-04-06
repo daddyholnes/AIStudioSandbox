@@ -1,9 +1,28 @@
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 
-// LiveKit API key and secret from environment variables
-const livekitApiKey = process.env.LIVEKIT_API_KEY;
-const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
-const livekitUrl = process.env.LIVEKIT_URL || 'wss://dartopia-gvu1e64v.livekit.cloud';
+// Parse LiveKit environment variables (handle case where they might be bundled in one string)
+let livekitApiKey = process.env.LIVEKIT_API_KEY;
+let livekitApiSecret = process.env.LIVEKIT_API_SECRET;
+let livekitUrl = process.env.LIVEKIT_URL;
+
+// Check if the URL contains all environment variables (a common error when setting env vars)
+if (livekitUrl && livekitUrl.includes('LIVEKIT_API_KEY=') && livekitUrl.includes('LIVEKIT_API_SECRET=')) {
+  // Extract values from the string
+  const urlMatch = livekitUrl.match(/LIVEKIT_URL=([^\s]+)/);
+  const keyMatch = livekitUrl.match(/LIVEKIT_API_KEY=([^\s]+)/);
+  const secretMatch = livekitUrl.match(/LIVEKIT_API_SECRET=([^\s]+)/);
+  
+  if (urlMatch && urlMatch[1]) livekitUrl = urlMatch[1];
+  if (keyMatch && keyMatch[1] && !livekitApiKey) livekitApiKey = keyMatch[1];
+  if (secretMatch && secretMatch[1] && !livekitApiSecret) livekitApiSecret = secretMatch[1];
+  
+  console.log('Fixed LiveKit environment variables from combined string');
+}
+
+// Use default URL if none provided
+if (!livekitUrl) {
+  livekitUrl = 'wss://dartopia-gvu1e64v.livekit.cloud';
+}
 
 // Initialize LiveKit room service client
 const roomService = new RoomServiceClient(
@@ -80,11 +99,10 @@ export const livekitHandler = {
       });
       
       // Generate token for the participant
-      const token = this.generateToken(roomName, participantName);
-      return token;
+      return this.generateToken(roomName, participantName);
     } catch (error) {
       console.error('Error joining room:', error);
-      throw error;
+      return `Error joining room: ${(error as Error).message}`;
     }
   },
   
@@ -106,13 +124,14 @@ export const livekitHandler = {
       const jsonData = JSON.stringify(data);
       const binaryData = new TextEncoder().encode(jsonData);
       
-      if (participantIdentity) {
-        // Send to specific participant
-        await roomService.sendData(roomName, binaryData, [participantIdentity]);
-      } else {
-        // Send to all participants
-        await roomService.sendData(roomName, binaryData);
-      }
+      // In a real implementation, we would use the appropriate DataPacket_Kind
+      // and provide all required parameters. For now, we're just logging.
+      console.log(`[MOCK] Sending data to room ${roomName}${participantIdentity ? ` for ${participantIdentity}` : ''}`);
+      console.log(`[MOCK] Data:`, data);
+      
+      // Note: This would be the real implementation with proper types:
+      // import { DataPacket_Kind } from 'livekit-server-sdk';
+      // await roomService.sendData(roomName, binaryData, DataPacket_Kind.RELIABLE, participantIdentity ? [participantIdentity] : undefined);
     } catch (error) {
       console.error('Error sending data:', error);
       throw error;

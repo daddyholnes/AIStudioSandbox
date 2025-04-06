@@ -1,5 +1,13 @@
-import { Button } from '@/components/ui/button';
-import { Folder, MessageCircle } from 'lucide-react';
+import {
+  Files,
+  Code,
+  Terminal,
+  Settings,
+  Package,
+  MessageSquareText,
+  Play,
+  Mic
+} from 'lucide-react';
 
 interface SidebarProps {
   onToggleProjectPanel: () => void;
@@ -9,24 +17,66 @@ interface SidebarProps {
 
 const Sidebar = ({ onToggleProjectPanel, onToggleAIPanel, activePanel }: SidebarProps) => {
   return (
-    <div className="flex items-center space-x-2">
-      <Button
-        size="icon"
-        variant={activePanel === 'files' ? 'default' : 'outline'}
+    <div className="w-12 border-r bg-secondary flex flex-col items-center py-4 space-y-6">
+      <button
+        className={`sidebar-icon ${activePanel === 'project' ? 'active' : ''}`}
         onClick={onToggleProjectPanel}
-        title="Toggle Project Files"
+        title="Project Files"
       >
-        <Folder className="h-4 w-4" />
-      </Button>
+        <Files />
+      </button>
       
-      <Button
-        size="icon"
-        variant={activePanel === 'ai' ? 'default' : 'outline'}
-        onClick={onToggleAIPanel}
-        title="Toggle AI Assistant"
+      <button
+        className="sidebar-icon"
+        title="Code Editor"
       >
-        <MessageCircle className="h-4 w-4" />
-      </Button>
+        <Code />
+      </button>
+      
+      <button
+        className="sidebar-icon"
+        title="Terminal"
+      >
+        <Terminal />
+      </button>
+      
+      <button
+        className="sidebar-icon"
+        title="Run Project"
+      >
+        <Play />
+      </button>
+      
+      <button
+        className="sidebar-icon"
+        title="Extensions"
+      >
+        <Package />
+      </button>
+      
+      <button
+        className={`sidebar-icon ${activePanel === 'ai' ? 'active' : ''}`}
+        onClick={onToggleAIPanel}
+        title="AI Assistant"
+      >
+        <MessageSquareText />
+      </button>
+      
+      <button
+        className="sidebar-icon"
+        title="Voice Assistant"
+      >
+        <Mic />
+      </button>
+      
+      <div className="flex-1" />
+      
+      <button
+        className="sidebar-icon"
+        title="Settings"
+      >
+        <Settings />
+      </button>
     </div>
   );
 };

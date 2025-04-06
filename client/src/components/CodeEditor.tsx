@@ -8,97 +8,57 @@ interface CodeEditorProps {
 }
 
 const CodeEditor = ({ content, language, onChange }: CodeEditorProps) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const monacoEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
-  // Initialize editor when component mounts
   useEffect(() => {
-    if (editorRef.current) {
-      const editor = monaco.editor.create(editorRef.current, {
+    if (containerRef.current) {
+      // Dispose of previous editor instance if it exists
+      if (editorRef.current) {
+        editorRef.current.dispose();
+      }
+      
+      // Create new editor
+      editorRef.current = monaco.editor.create(containerRef.current, {
         value: content,
-        language: mapLanguage(language),
+        language,
         theme: 'vs-dark',
         automaticLayout: true,
         minimap: {
-          enabled: false
+          enabled: true,
         },
         scrollBeyondLastLine: false,
         fontSize: 14,
-        tabSize: 2,
-        wordWrap: 'on',
         lineNumbers: 'on',
-        glyphMargin: true,
-        folding: true,
-        lineDecorationsWidth: 10,
-        lineNumbersMinChars: 3
+        tabSize: 2,
       });
       
-      // Save editor instance
-      monacoEditorRef.current = editor;
-      
-      // Set up change event handler
-      editor.onDidChangeModelContent(() => {
-        const value = editor.getValue();
+      // Set up change handler
+      editorRef.current.onDidChangeModelContent(() => {
+        const value = editorRef.current?.getValue() || '';
         onChange(value);
       });
-      
-      // Cleanup on unmount
-      return () => {
-        editor.dispose();
-      };
     }
-  }, []);
+    
+    return () => {
+      // Cleanup on unmount
+      if (editorRef.current) {
+        editorRef.current.dispose();
+      }
+    };
+  }, [language]); // Only re-initialize when language changes
   
   // Update content when it changes externally
   useEffect(() => {
-    if (monacoEditorRef.current) {
-      const currentValue = monacoEditorRef.current.getValue();
+    if (editorRef.current) {
+      const currentValue = editorRef.current.getValue();
       if (content !== currentValue) {
-        monacoEditorRef.current.setValue(content);
+        editorRef.current.setValue(content);
       }
     }
   }, [content]);
   
-  // Update language when it changes
-  useEffect(() => {
-    if (monacoEditorRef.current) {
-      monaco.editor.setModelLanguage(
-        monacoEditorRef.current.getModel()!,
-        mapLanguage(language)
-      );
-    }
-  }, [language]);
-  
-  // Map language names to Monaco editor language identifiers
-  const mapLanguage = (lang: string): string => {
-    const languageMap: Record<string, string> = {
-      'javascript': 'javascript',
-      'typescript': 'typescript',
-      'html': 'html',
-      'css': 'css',
-      'json': 'json',
-      'python': 'python',
-      'java': 'java',
-      'c': 'c',
-      'cpp': 'cpp',
-      'csharp': 'csharp',
-      'go': 'go',
-      'ruby': 'ruby',
-      'php': 'php',
-      'sql': 'sql',
-      'markdown': 'markdown',
-      'plaintext': 'plaintext',
-      'yaml': 'yaml',
-      'shell': 'shell',
-      'dockerfile': 'dockerfile'
-    };
-    
-    return languageMap[lang.toLowerCase()] || 'plaintext';
-  };
-  
-  return (
-    <div ref={editorRef} className="h-full w-full" />
-  );
+  return <div ref={containerRef} className="code-editor" />;
 };
 
 export default CodeEditor;

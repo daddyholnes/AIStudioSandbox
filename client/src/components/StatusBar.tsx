@@ -1,4 +1,4 @@
-import { Code, Check, Wifi, WifiOff } from 'lucide-react';
+import { Wifi, WifiOff, GitBranch } from 'lucide-react';
 
 interface StatusBarProps {
   language: string;
@@ -7,31 +7,31 @@ interface StatusBarProps {
 
 const StatusBar = ({ language, roomConnected }: StatusBarProps) => {
   return (
-    <div className="px-4 py-1 border-t bg-zinc-800 text-zinc-300 flex justify-between text-sm">
-      <div className="flex space-x-4">
-        <div className="flex items-center space-x-1">
-          <Code className="h-3.5 w-3.5" />
-          <span>{language}</span>
+    <div className="py-1 px-3 bg-muted/30 border-t flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex items-center space-x-3">
+        <div className="flex items-center">
+          <GitBranch className="h-3.5 w-3.5 mr-1" />
+          <span>main</span>
         </div>
-        
-        <div className="flex items-center space-x-1">
-          {roomConnected ? (
-            <>
-              <Wifi className="h-3.5 w-3.5 text-green-400" />
-              <span className="text-green-400">Connected</span>
-            </>
-          ) : (
-            <>
-              <WifiOff className="h-3.5 w-3.5 text-red-400" />
-              <span className="text-red-400">Disconnected</span>
-            </>
-          )}
+        <div>
+          Language: {language}
         </div>
       </div>
       
-      <div className="flex items-center space-x-1">
-        <Check className="h-3.5 w-3.5 text-green-400" />
-        <span>Ready</span>
+      <div className="flex items-center space-x-2">
+        <div className="flex items-center">
+          {roomConnected ? (
+            <>
+              <Wifi className="h-3.5 w-3.5 mr-1 text-green-500" />
+              <span className="text-green-500">Connected</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-3.5 w-3.5 mr-1 text-red-500" />
+              <span className="text-red-500">Disconnected</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

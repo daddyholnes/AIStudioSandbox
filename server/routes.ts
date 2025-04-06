@@ -1,22 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import { livekitHandler } from "./livekit";
 import { aiHandler } from "./ai";
-
-// LiveKit API key and secret from environment variables
-const livekitApiKey = process.env.LIVEKIT_API_KEY;
-const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
-const livekitUrl = process.env.LIVEKIT_URL || 'wss://dartopia-gvu1e64v.livekit.cloud';
-
-// Initialize LiveKit room service client
-const roomService = new RoomServiceClient(
-  livekitUrl,
-  livekitApiKey,
-  livekitApiSecret
-);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
@@ -95,19 +82,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Room name is required' });
       }
       
-      if (!livekitApiKey || !livekitApiSecret) {
-        console.warn('LiveKit API key or secret not provided, returning mock success response');
-        return res.status(201).json({ success: true, roomName });
-      }
+      // Create the room using our handler
+      const result = await livekitHandler.createRoom(roomName);
       
-      // Create the room
-      await roomService.createRoom({
-        name: roomName,
-        emptyTimeout: 300, // Room closes after 5 minutes if empty
-        maxParticipants: 10
-      });
-      
-      return res.status(201).json({ success: true, roomName });
+      return res.status(201).json(result);
     } catch (error) {
       console.error('Error creating room:', error);
       return res.status(500).json({ 
@@ -119,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Generate a LiveKit token
-  app.post('/api/livekit/token', (req, res) => {
+  app.post('/api/livekit/token', async (req, res) => {
     try {
       const { roomName, participantName } = req.body;
       
@@ -127,26 +105,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Room name and participant name are required' });
       }
       
-      if (!livekitApiKey || !livekitApiSecret) {
-        console.warn('LiveKit API key or secret not provided, returning mock token');
-        // Return a mock token for development purposes
-        return res.status(200).json({ token: 'mock-token-for-development' });
-      }
+      // Join room or create if it doesn't exist
+      const token = await livekitHandler.joinRoom(roomName, participantName);
       
-      // Create token
-      const token = new AccessToken(livekitApiKey, livekitApiSecret, {
-        identity: participantName
-      });
-      
-      // Add permissions
-      token.addGrant({
-        roomJoin: true,
-        room: roomName,
-        canPublish: true,
-        canSubscribe: true
-      });
-      
-      return res.status(200).json({ token: token.toJwt() });
+      return res.status(200).json({ token });
     } catch (error) {
       console.error('Error generating token:', error);
       return res.status(500).json({ 

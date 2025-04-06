@@ -1,6 +1,6 @@
 import * as React from "react"
-import { GripVertical } from "lucide-react"
 import * as ResizablePrimitive from "react-resizable-panels"
+import { GripVertical, GripHorizontal } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -25,7 +25,7 @@ const ResizablePanel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ResizablePrimitive.Panel
     ref={ref}
-    className={cn("grow overflow-auto", className)}
+    className={cn("relative h-full w-full overflow-auto", className)}
     {...props}
   />
 ))
@@ -33,8 +33,10 @@ ResizablePanel.displayName = "ResizablePanel"
 
 const ResizableHandle = React.forwardRef<
   React.ElementRef<typeof ResizablePrimitive.PanelResizeHandle>,
-  React.ComponentPropsWithoutRef<typeof ResizablePrimitive.PanelResizeHandle>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof ResizablePrimitive.PanelResizeHandle> & {
+    withHandle?: boolean
+  }
+>(({ className, withHandle, ...props }, ref) => (
   <ResizablePrimitive.PanelResizeHandle
     ref={ref}
     className={cn(
@@ -43,9 +45,15 @@ const ResizableHandle = React.forwardRef<
     )}
     {...props}
   >
-    <div className="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border">
-      <GripVertical className="h-2.5 w-2.5" />
-    </div>
+    {withHandle && (
+      <div className="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border">
+      {props["data-panel-group-direction"] === "vertical" ? (
+        <GripHorizontal className="h-2.5 w-2.5" />
+      ) : (
+        <GripVertical className="h-2.5 w-2.5" />
+      )}
+      </div>
+    )}
   </ResizablePrimitive.PanelResizeHandle>
 ))
 ResizableHandle.displayName = "ResizableHandle"

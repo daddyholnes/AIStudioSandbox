@@ -1,283 +1,223 @@
 import { useState, useEffect } from 'react';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import ProjectPanel from '@/components/ProjectPanel';
-import EditorPanel from '@/components/EditorPanel';
-import OutputPanel from '@/components/OutputPanel';
-import AIPanel from '@/components/AIPanel';
-import StatusBar from '@/components/StatusBar';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { useToast } from '@/hooks/use-toast';
-import { ProjectFileInfo } from '@shared/schema';
+import Header from '../components/Header';
+import Sidebar from '../components/Sidebar';
+import ProjectPanel from '../components/ProjectPanel';
+import EditorPanel from '../components/EditorPanel';
+import AIPanel from '../components/AIPanel';
+import StatusBar from '../components/StatusBar';
+import OutputPanel from '../components/OutputPanel';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
-const CodeStudio = () => {
-  // State for panels
-  const [activePanel, setActivePanel] = useState<string>('');
-  const [showProjectPanel, setShowProjectPanel] = useState<boolean>(false);
-  const [showAIPanel, setShowAIPanel] = useState<boolean>(false);
-  
-  // State for editor
-  const [aiModel, setAiModel] = useState<string>('gemini-pro');
-  const [files, setFiles] = useState<ProjectFileInfo[]>([]);
+// Define ProjectFileInfo type for the client-side components
+export interface ProjectFileInfo {
+  id: string;
+  name: string;
+  path: string;
+  language: string;
+  isFolder: boolean;
+  content?: string;
+  children?: ProjectFileInfo[];
+}
+
+interface CodeStudioProps {
+  aiModel: string;
+  setAiModel: (model: string) => void;
+  isDarkMode: boolean;
+  setIsDarkMode: (isDarkMode: boolean) => void;
+}
+
+const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStudioProps) => {
+  const [activePanel, setActivePanel] = useState('project');
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<string>('');
   const [editorContent, setEditorContent] = useState<string>('');
-  const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
-  
-  // LiveKit room state
-  const [roomConnected, setRoomConnected] = useState<boolean>(false);
-  const [roomName, setRoomName] = useState<string>('default-room');
-  
-  const isMobile = useIsMobile();
-  const { toast } = useToast();
-  
-  // Initialize with some sample files
+  const [output, setOutput] = useState<string[]>([]);
+  const [files, setFiles] = useState<ProjectFileInfo[]>([]);
+  const [roomConnected, setRoomConnected] = useState(false);
+  const [roomName, setRoomName] = useState('default-room');
+
   useEffect(() => {
-    const sampleFiles: ProjectFileInfo[] = [
-      {
-        id: 'folder-1',
-        name: 'src',
-        path: '/src',
-        language: 'plaintext',
-        isFolder: true,
-        children: [
-          {
-            id: 'file-1',
-            name: 'index.js',
-            path: '/src/index.js',
-            language: 'javascript',
-            isFolder: false,
-            content: '// Sample JavaScript file\n\nfunction helloWorld() {\n  console.log("Hello, World!");\n}\n\nhelloWorld();'
-          },
-          {
-            id: 'file-2',
-            name: 'app.js',
-            path: '/src/app.js',
-            language: 'javascript',
-            isFolder: false,
-            content: '// App component\n\nconst App = () => {\n  return (\n    <div>\n      <h1>Hello from App</h1>\n    </div>\n  );\n};\n\nexport default App;'
-          },
-          {
-            id: 'file-3',
-            name: 'styles.css',
-            path: '/src/styles.css',
-            language: 'css',
-            isFolder: false,
-            content: '/* Styles */\n\nbody {\n  font-family: sans-serif;\n  margin: 0;\n  padding: 0;\n  background-color: #f5f5f5;\n}\n\n.container {\n  max-width: 1200px;\n  margin: 0 auto;\n  padding: 20px;\n}'
-          }
-        ]
-      },
-      {
-        id: 'folder-2',
-        name: 'public',
-        path: '/public',
-        language: 'plaintext',
-        isFolder: true,
-        children: [
-          {
-            id: 'file-4',
-            name: 'index.html',
-            path: '/public/index.html',
-            language: 'html',
-            isFolder: false,
-            content: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Code Studio</title>\n</head>\n<body>\n  <div id="root"></div>\n  <script src="../src/index.js"></script>\n</body>\n</html>'
-          }
-        ]
-      }
-    ];
-    
-    setFiles(sampleFiles);
+    // Fetch project files on component mount
+    fetchFiles();
+    // Create or join LiveKit room
+    createOrJoinRoom();
   }, []);
-  
-  // Toggle panels
-  const toggleProjectPanel = () => {
-    const newState = !showProjectPanel;
-    setShowProjectPanel(newState);
-    
-    if (newState) {
-      setActivePanel('files');
-      // Close AI panel on mobile
-      if (isMobile && showAIPanel) {
-        setShowAIPanel(false);
-      }
-    } else if (activePanel === 'files') {
-      setActivePanel('');
+
+  const fetchFiles = async () => {
+    try {
+      const response = await fetch('/api/files');
+      const data = await response.json();
+      setFiles(data);
+    } catch (error) {
+      console.error('Error fetching files:', error);
     }
   };
-  
-  const toggleAIPanel = () => {
-    const newState = !showAIPanel;
-    setShowAIPanel(newState);
-    
-    if (newState) {
-      setActivePanel('ai');
-      // Close project panel on mobile
-      if (isMobile && showProjectPanel) {
-        setShowProjectPanel(false);
+
+  const createOrJoinRoom = async () => {
+    try {
+      // Create room
+      const createResponse = await fetch('/api/livekit/room', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ roomName }),
+      });
+      
+      const createData = await createResponse.json();
+      
+      if (createData.success) {
+        // Get token
+        const tokenResponse = await fetch('/api/livekit/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            roomName, 
+            participantName: 'User-' + Math.floor(Math.random() * 10000) 
+          }),
+        });
+        
+        const tokenData = await tokenResponse.json();
+        
+        if (tokenData.token) {
+          // In a real app, we would connect to the room using LiveKit client
+          console.log('Got token:', tokenData.token);
+          setRoomConnected(true);
+        }
       }
-    } else if (activePanel === 'ai') {
-      setActivePanel('');
+    } catch (error) {
+      console.error('Error creating/joining room:', error);
     }
   };
-  
-  // Handle file selection
+
   const handleFileSelect = (fileId: string) => {
     setSelectedFileId(fileId);
     
-    // Find file content
-    const findFileById = (files: ProjectFileInfo[], id: string): ProjectFileInfo | null => {
+    // Find the file
+    const findFile = (files: ProjectFileInfo[]): ProjectFileInfo | undefined => {
       for (const file of files) {
-        if (file.id === id) return file;
+        if (file.id === fileId) return file;
         if (file.isFolder && file.children) {
-          const foundInChildren = findFileById(file.children, id);
-          if (foundInChildren) return foundInChildren;
+          const found = findFile(file.children);
+          if (found) return found;
         }
       }
-      return null;
+      return undefined;
     };
     
-    const flattenFiles = (fileTree: ProjectFileInfo[]): ProjectFileInfo[] => {
-      const result: ProjectFileInfo[] = [];
-      
-      const flatten = (items: ProjectFileInfo[]) => {
-        for (const item of items) {
-          result.push(item);
-          if (item.isFolder && item.children) {
-            flatten(item.children);
-          }
-        }
-      };
-      
-      flatten(fileTree);
-      return result;
-    };
+    const file = findFile(files);
     
-    const allFiles = flattenFiles(files);
-    const selectedFile = allFiles.find(file => file.id === fileId);
-    
-    if (selectedFile && !selectedFile.isFolder) {
-      // Add to tabs if not already open
+    if (file && !file.isFolder) {
+      // Add to open tabs if not already open
       if (!openTabs.includes(fileId)) {
         setOpenTabs([...openTabs, fileId]);
       }
       
       setActiveTab(fileId);
-      setEditorContent(selectedFile.content || '');
-    }
-  };
-  
-  // Handle editor content change
-  const handleEditorChange = (newContent: string) => {
-    setEditorContent(newContent);
-    
-    // Update file content in the files array
-    const updateFileContent = (files: ProjectFileInfo[], fileId: string, content: string): ProjectFileInfo[] => {
-      return files.map(file => {
-        if (file.id === fileId) {
-          return { ...file, content };
-        }
-        if (file.isFolder && file.children) {
-          return {
-            ...file,
-            children: updateFileContent(file.children, fileId, content)
-          };
-        }
-        return file;
-      });
-    };
-    
-    if (activeTab) {
-      setFiles(updateFileContent(files, activeTab, newContent));
-    }
-  };
-  
-  // Execute code from editor
-  const executeCode = () => {
-    // Simple code execution simulation
-    if (!editorContent) {
-      toast({
-        title: 'No code to execute',
-        description: 'Please open a file and write some code first.',
-        variant: 'destructive'
-      });
-      return;
-    }
-    
-    // Clear previous output
-    setConsoleOutput([]);
-    
-    // Simulate console output
-    setConsoleOutput([
-      '> Executing code...',
-      `> File: ${activeTab ? files.find(f => f.id === activeTab)?.name : 'Untitled'}`,
-      '> Output:',
-      '> "Hello, World!"',
-      '> Execution completed successfully.'
-    ]);
-    
-    toast({
-      title: 'Code Executed',
-      description: 'See the output in the console panel below.'
-    });
-  };
-  
-  // Get active file language
-  const getActiveLanguage = (): string => {
-    if (!activeTab) return 'javascript';
-    
-    const findFileById = (files: ProjectFileInfo[], id: string): ProjectFileInfo | null => {
-      for (const file of files) {
-        if (file.id === id) return file;
-        if (file.isFolder && file.children) {
-          const foundInChildren = findFileById(file.children, id);
-          if (foundInChildren) return foundInChildren;
-        }
-      }
-      return null;
-    };
-    
-    const activeFile = findFileById(files, activeTab);
-    return activeFile?.language || 'javascript';
-  };
-  
-  return (
-    <div className="h-screen flex flex-col">
-      <Header aiModel={aiModel} setAiModel={setAiModel} />
       
-      <div className="flex-1 flex overflow-hidden">
-        <ResizablePanelGroup direction="horizontal">
-          {/* Project Panel */}
-          {showProjectPanel && (
-            <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-              <ProjectPanel
-                files={files}
-                onFileSelect={handleFileSelect}
-                selectedFileId={selectedFileId}
-              />
-            </ResizablePanel>
+      // Set editor content
+      setEditorContent(file.content || '');
+    }
+  };
+
+  const handleEditorChange = (content: string) => {
+    setEditorContent(content);
+    
+    // In a real app, we would save the file content
+    console.log('File content changed, would save:', content);
+  };
+
+  const handleToggleProjectPanel = () => {
+    setActivePanel(activePanel === 'project' ? '' : 'project');
+  };
+
+  const handleToggleAIPanel = () => {
+    setActivePanel(activePanel === 'ai' ? '' : 'ai');
+  };
+
+  const executeCode = async () => {
+    // Add a loading message
+    setOutput([...output, '> Executing code...']);
+    
+    try {
+      // Find the currently active file to determine language
+      const findFile = (files: ProjectFileInfo[]): ProjectFileInfo | undefined => {
+        for (const file of files) {
+          if (file.id === activeTab) return file;
+          if (file.isFolder && file.children) {
+            const found = findFile(file.children);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+      
+      const file = findFile(files);
+      const language = file?.language || 'javascript';
+      
+      const response = await fetch('/api/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          code: editorContent,
+          language
+        }),
+      });
+      
+      const data = await response.json();
+      
+      // Display the result
+      if (data.result) {
+        setOutput([...output, data.result]);
+      }
+      
+      if (data.error) {
+        setOutput([...output, `Error: ${data.error}`]);
+      }
+    } catch (error: any) {
+      console.error('Error executing code:', error);
+      setOutput([...output, `Error: ${error.message || 'Unknown error'}`]);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-background">
+      <Header 
+        aiModel={aiModel} 
+        setAiModel={setAiModel}
+        isDarkMode={isDarkMode}
+        setIsDarkMode={setIsDarkMode}
+      />
+      
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar 
+          onToggleProjectPanel={handleToggleProjectPanel}
+          onToggleAIPanel={handleToggleAIPanel}
+          activePanel={activePanel}
+        />
+        
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          {activePanel === 'project' && (
+            <>
+              <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+                <ProjectPanel 
+                  files={files}
+                  onFileSelect={handleFileSelect}
+                  selectedFileId={selectedFileId}
+                />
+              </ResizablePanel>
+              <ResizableHandle />
+            </>
           )}
           
-          {/* Main Editor */}
-          <ResizablePanel defaultSize={showAIPanel ? 60 : 80} minSize={30}>
-            <div className="h-full flex flex-col">
-              <div className="p-2 bg-muted flex items-center space-x-2">
-                <Sidebar
-                  activePanel={activePanel}
-                  onToggleProjectPanel={toggleProjectPanel}
-                  onToggleAIPanel={toggleAIPanel}
-                />
-                
-                <button
-                  className="ml-auto px-3 py-1 text-xs bg-primary text-primary-foreground rounded-md"
-                  onClick={executeCode}
-                >
-                  Run Code
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-hidden flex flex-col">
+          <ResizablePanel defaultSize={activePanel ? 60 : 80}>
+            <ResizablePanelGroup direction="vertical">
+              <ResizablePanel defaultSize={70}>
                 <EditorPanel
                   openTabs={openTabs}
                   activeTab={activeTab}
@@ -286,22 +226,32 @@ const CodeStudio = () => {
                   files={files}
                   editorContent={editorContent}
                 />
-                
-                <OutputPanel output={consoleOutput} />
-              </div>
-              
-              <StatusBar language={getActiveLanguage()} roomConnected={roomConnected} />
-            </div>
+              </ResizablePanel>
+              <ResizableHandle />
+              <ResizablePanel defaultSize={30}>
+                <OutputPanel output={output} />
+              </ResizablePanel>
+            </ResizablePanelGroup>
           </ResizablePanel>
           
-          {/* AI Panel */}
-          {showAIPanel && (
-            <ResizablePanel defaultSize={20} minSize={15} maxSize={40}>
-              <AIPanel roomConnected={roomConnected} roomName={roomName} />
-            </ResizablePanel>
+          {activePanel === 'ai' && (
+            <>
+              <ResizableHandle />
+              <ResizablePanel defaultSize={20} minSize={20} maxSize={40}>
+                <AIPanel 
+                  roomConnected={roomConnected}
+                  roomName={roomName}
+                />
+              </ResizablePanel>
+            </>
           )}
         </ResizablePanelGroup>
       </div>
+      
+      <StatusBar 
+        language={files.find(f => f.id === activeTab)?.language || 'plaintext'}
+        roomConnected={roomConnected}
+      />
     </div>
   );
 };

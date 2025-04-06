@@ -1,57 +1,74 @@
-import { SiGoogle } from 'react-icons/si';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff } from 'lucide-react';
-import { useState } from 'react';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Sun, Moon, Play, Save, PlusCircle } from 'lucide-react';
 
 interface HeaderProps {
   aiModel: string;
   setAiModel: (model: string) => void;
+  isDarkMode: boolean;
+  setIsDarkMode: (isDarkMode: boolean) => void;
 }
 
-const Header = ({ aiModel, setAiModel }: HeaderProps) => {
-  const [micActive, setMicActive] = useState(false);
-  
-  const toggleMic = () => {
-    setMicActive(prev => !prev);
+const Header = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: HeaderProps) => {
+  const handleModelChange = (value: string) => {
+    setAiModel(value);
   };
-  
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+  };
+
   return (
-    <div className="border-b p-2 flex items-center justify-between">
+    <header className="flex items-center justify-between p-2 bg-secondary border-b">
       <div className="flex items-center">
-        <SiGoogle className="h-6 w-6 text-blue-500 mr-2" />
-        <span className="font-semibold text-lg hidden sm:inline">CodeStudio AI</span>
+        <div className="flex items-center mr-6">
+          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-primary-foreground mr-2">
+            <span className="font-bold">D</span>
+          </div>
+          <h1 className="text-lg font-bold">Dartopia</h1>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="sm">
+            <PlusCircle className="h-4 w-4 mr-2" />
+            New File
+          </Button>
+          <Button variant="outline" size="sm">
+            <Save className="h-4 w-4 mr-2" />
+            Save
+          </Button>
+          <Button variant="outline" size="sm">
+            <Play className="h-4 w-4 mr-2" />
+            Run
+          </Button>
+        </div>
       </div>
       
-      <div className="flex items-center space-x-2">
-        <Select value={aiModel} onValueChange={setAiModel}>
-          <SelectTrigger className="h-8 w-[180px]">
-            <SelectValue placeholder="Select Model" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
-            <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
-            <SelectItem value="gemini-ultra">Gemini Ultra</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <label className="text-sm">AI Model:</label>
+          <Select value={aiModel} onValueChange={handleModelChange}>
+            <SelectTrigger className="w-[180px] h-8">
+              <SelectValue placeholder="Select a model" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gemini-2.0-flash-exp">Gemini Flash</SelectItem>
+              <SelectItem value="gemini-2.0-pro-exp">Gemini Pro</SelectItem>
+              <SelectItem value="claude-3-sonnet-20240229">Claude 3 Sonnet</SelectItem>
+              <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         
-        <Button
-          variant={micActive ? "default" : "outline"}
-          size="icon"
-          className="h-8 w-8"
-          onClick={toggleMic}
-          title={micActive ? "Turn Microphone Off" : "Turn Microphone On"}
-        >
-          {micActive ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+        <Button variant="ghost" size="icon" onClick={toggleTheme}>
+          {isDarkMode ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
         </Button>
       </div>
-    </div>
+    </header>
   );
 };
 
