@@ -1,9 +1,5 @@
 import { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
-import { cn } from '@/lib/utils';
-
-// Import Monaco CSS
-import 'monaco-editor/min/vs/editor/editor.main.css';
 
 interface CodeEditorProps {
   content: string;
@@ -15,96 +11,93 @@ const CodeEditor = ({ content, language, onChange }: CodeEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   
+  // Initialize editor when component mounts
   useEffect(() => {
     if (editorRef.current) {
-      if (!monacoEditorRef.current) {
-        monacoEditorRef.current = monaco.editor.create(editorRef.current, {
-          value: content,
-          language: mapLanguage(language),
-          theme: 'vs-dark',
-          automaticLayout: true,
-          minimap: { enabled: true },
-          scrollBeyondLastLine: false,
-          fontSize: 14,
-          fontFamily: '"Roboto Mono", monospace',
-          lineNumbers: 'on',
-          renderLineHighlight: 'all',
-          roundedSelection: true,
-          selectOnLineNumbers: true,
-          wordWrap: 'on',
-          tabSize: 2,
-        });
-        
-        // Add event listener for content changes
-        monacoEditorRef.current.onDidChangeModelContent(() => {
-          const value = monacoEditorRef.current?.getValue() || '';
-          onChange(value);
-        });
-        
-        // Register basic completion provider
-        monaco.languages.registerCompletionItemProvider('javascript', {
-          provideCompletionItems: (model, position) => {
-            const suggestions = [
-              {
-                label: 'console.log',
-                kind: monaco.languages.CompletionItemKind.Method,
-                insertText: 'console.log($1);',
-                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-              },
-              {
-                label: 'function',
-                kind: monaco.languages.CompletionItemKind.Snippet,
-                insertText: 'function ${1:name}(${2:params}) {\n\t${3}\n}',
-                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-              },
-              {
-                label: 'setTimeout',
-                kind: monaco.languages.CompletionItemKind.Method,
-                insertText: 'setTimeout(() => {\n\t${1}\n}, ${2:1000});',
-                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-              }
-            ];
-            return { suggestions };
-          }
-        });
-      } else {
-        // Update content if it changes externally
-        if (monacoEditorRef.current.getValue() !== content) {
-          monacoEditorRef.current.setValue(content);
-        }
-        
-        // Update language if it changes
-        monaco.editor.setModelLanguage(
-          monacoEditorRef.current.getModel() as monaco.editor.ITextModel, 
-          mapLanguage(language)
-        );
+      const editor = monaco.editor.create(editorRef.current, {
+        value: content,
+        language: mapLanguage(language),
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: {
+          enabled: false
+        },
+        scrollBeyondLastLine: false,
+        fontSize: 14,
+        tabSize: 2,
+        wordWrap: 'on',
+        lineNumbers: 'on',
+        glyphMargin: true,
+        folding: true,
+        lineDecorationsWidth: 10,
+        lineNumbersMinChars: 3
+      });
+      
+      // Save editor instance
+      monacoEditorRef.current = editor;
+      
+      // Set up change event handler
+      editor.onDidChangeModelContent(() => {
+        const value = editor.getValue();
+        onChange(value);
+      });
+      
+      // Cleanup on unmount
+      return () => {
+        editor.dispose();
+      };
+    }
+  }, []);
+  
+  // Update content when it changes externally
+  useEffect(() => {
+    if (monacoEditorRef.current) {
+      const currentValue = monacoEditorRef.current.getValue();
+      if (content !== currentValue) {
+        monacoEditorRef.current.setValue(content);
       }
     }
-    
-    return () => {
-      monacoEditorRef.current?.dispose();
-    };
+  }, [content]);
+  
+  // Update language when it changes
+  useEffect(() => {
+    if (monacoEditorRef.current) {
+      monaco.editor.setModelLanguage(
+        monacoEditorRef.current.getModel()!,
+        mapLanguage(language)
+      );
+    }
   }, [language]);
   
-  // Map file extensions to Monaco languages
+  // Map language names to Monaco editor language identifiers
   const mapLanguage = (lang: string): string => {
     const languageMap: Record<string, string> = {
       'javascript': 'javascript',
-      'js': 'javascript',
       'typescript': 'typescript',
-      'ts': 'typescript',
       'html': 'html',
       'css': 'css',
       'json': 'json',
+      'python': 'python',
+      'java': 'java',
+      'c': 'c',
+      'cpp': 'cpp',
+      'csharp': 'csharp',
+      'go': 'go',
+      'ruby': 'ruby',
+      'php': 'php',
+      'sql': 'sql',
       'markdown': 'markdown',
-      'md': 'markdown'
+      'plaintext': 'plaintext',
+      'yaml': 'yaml',
+      'shell': 'shell',
+      'dockerfile': 'dockerfile'
     };
     
-    return languageMap[lang] || 'plaintext';
+    return languageMap[lang.toLowerCase()] || 'plaintext';
   };
   
   return (
-    <div ref={editorRef} className="w-full h-full" />
+    <div ref={editorRef} className="h-full w-full" />
   );
 };
 

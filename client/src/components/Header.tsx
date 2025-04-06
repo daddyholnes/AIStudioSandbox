@@ -1,6 +1,14 @@
-import { useState } from 'react';
+import { SiGoogle } from 'react-icons/si';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Mic, MicOff } from 'lucide-react';
+import { useState } from 'react';
 
 interface HeaderProps {
   aiModel: string;
@@ -8,38 +16,42 @@ interface HeaderProps {
 }
 
 const Header = ({ aiModel, setAiModel }: HeaderProps) => {
+  const [micActive, setMicActive] = useState(false);
+  
+  const toggleMic = () => {
+    setMicActive(prev => !prev);
+  };
+  
   return (
-    <header className="bg-card border-b border-gray-700 py-2 px-4 flex items-center justify-between">
-      <div className="flex items-center space-x-2">
-        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-          <span className="font-google-sans text-xl text-white">D</span>
-        </div>
-        <h1 className="font-google-sans text-xl font-medium">Dartopia</h1>
+    <div className="border-b p-2 flex items-center justify-between">
+      <div className="flex items-center">
+        <SiGoogle className="h-6 w-6 text-blue-500 mr-2" />
+        <span className="font-semibold text-lg hidden sm:inline">CodeStudio AI</span>
       </div>
       
-      <div className="flex items-center space-x-4">
-        <div className="relative">
-          <Select value={aiModel} onValueChange={setAiModel}>
-            <SelectTrigger className="bg-background border border-gray-700 rounded px-3 py-1 text-sm font-roboto focus:outline-none focus:ring-1 focus:ring-primary min-w-[180px]">
-              <SelectValue placeholder="Select model" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</SelectItem>
-              <SelectItem value="gemini-1.5-pro">gemini-1.5-pro</SelectItem>
-              <SelectItem value="gemini-1.0">gemini-1.0</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="flex items-center space-x-2">
+        <Select value={aiModel} onValueChange={setAiModel}>
+          <SelectTrigger className="h-8 w-[180px]">
+            <SelectValue placeholder="Select Model" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
+            <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
+            <SelectItem value="gemini-ultra">Gemini Ultra</SelectItem>
+          </SelectContent>
+        </Select>
         
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <i className="ri-settings-4-line text-lg"></i>
+        <Button
+          variant={micActive ? "default" : "outline"}
+          size="icon"
+          className="h-8 w-8"
+          onClick={toggleMic}
+          title={micActive ? "Turn Microphone Off" : "Turn Microphone On"}
+        >
+          {micActive ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
         </Button>
-        
-        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-          <span className="font-google-sans text-sm">JD</span>
-        </div>
       </div>
-    </header>
+    </div>
   );
 };
 

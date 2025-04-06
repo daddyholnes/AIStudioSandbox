@@ -12,7 +12,6 @@ const roomService = new RoomServiceClient(
   livekitApiSecret
 );
 
-// LiveKit handler
 export const livekitHandler = {
   /**
    * Create a new LiveKit room
@@ -20,11 +19,16 @@ export const livekitHandler = {
    * @returns Promise with creation result
    */
   async createRoom(roomName: string): Promise<{ success: boolean; roomName: string }> {
+    if (!livekitApiKey || !livekitApiSecret) {
+      console.warn('LiveKit API key or secret not provided, skipping room creation');
+      return { success: true, roomName };
+    }
+    
     try {
       await roomService.createRoom({
         name: roomName,
         emptyTimeout: 300, // Room closes after 5 minutes if empty
-        maxParticipants: 2  // Limit to user and AI assistant
+        maxParticipants: 10
       });
       
       return { success: true, roomName };
@@ -42,11 +46,15 @@ export const livekitHandler = {
    * @returns JWT token for room access
    */
   generateToken(roomName: string, participantName: string, isPublisher = true): string {
-    const token = new AccessToken(livekitApiKey!, livekitApiSecret!, {
+    if (!livekitApiKey || !livekitApiSecret) {
+      console.warn('LiveKit API key or secret not provided, returning mock token');
+      return 'mock-token-for-development';
+    }
+    
+    const token = new AccessToken(livekitApiKey, livekitApiSecret, {
       identity: participantName
     });
     
-    // Add appropriate permissions
     token.addGrant({
       roomJoin: true,
       room: roomName,
@@ -65,24 +73,14 @@ export const livekitHandler = {
    */
   async joinRoom(roomName: string, participantName: string): Promise<string> {
     try {
-      // Check if room exists, create if it doesn't
-      try {
-        // Use listRooms to check if room exists - livekit-server-sdk doesn't have getRoom
-        const rooms = await roomService.listRooms();
-        const roomExists = rooms.some(room => room.name === roomName);
-        
-        if (!roomExists) {
-          // Room doesn't exist, create it
-          await this.createRoom(roomName);
-        }
-      } catch (error) {
-        // Room doesn't exist or error occurred, create it
-        await this.createRoom(roomName);
-      }
+      // Create room if it doesn't exist
+      await this.createRoom(roomName).catch(() => {
+        // Ignore errors, room might already exist
+        console.log(`Room ${roomName} might already exist, continuing...`);
+      });
       
       // Generate token for the participant
       const token = this.generateToken(roomName, participantName);
-      
       return token;
     } catch (error) {
       console.error('Error joining room:', error);
@@ -98,15 +96,22 @@ export const livekitHandler = {
    * @returns Promise resolving when data is sent
    */
   async sendData(roomName: string, data: any, participantIdentity?: string): Promise<void> {
+    if (!livekitApiKey || !livekitApiSecret) {
+      console.warn('LiveKit API key or secret not provided, skipping data sending');
+      return;
+    }
+    
     try {
-      // Send data to room or specific participant
-      const dataToSend = Buffer.from(JSON.stringify(data));
-      const kind = 1; // RELIABLE delivery
+      // Serialize data to JSON
+      const jsonData = JSON.stringify(data);
+      const binaryData = new TextEncoder().encode(jsonData);
       
       if (participantIdentity) {
-        await roomService.sendData(roomName, dataToSend, kind, [participantIdentity]);
+        // Send to specific participant
+        await roomService.sendData(roomName, binaryData, [participantIdentity]);
       } else {
-        await roomService.sendData(roomName, dataToSend, kind);
+        // Send to all participants
+        await roomService.sendData(roomName, binaryData);
       }
     } catch (error) {
       console.error('Error sending data:', error);
@@ -120,10 +125,14 @@ export const livekitHandler = {
    * @returns Promise with array of participants
    */
   async getRoomParticipants(roomName: string): Promise<any[]> {
+    if (!livekitApiKey || !livekitApiSecret) {
+      console.warn('LiveKit API key or secret not provided, returning empty participants list');
+      return [];
+    }
+    
     try {
-      // Use listParticipants to get participants instead of getRoom
       const participants = await roomService.listParticipants(roomName);
-      return participants || [];
+      return participants;
     } catch (error) {
       console.error('Error getting room participants:', error);
       throw error;
@@ -136,6 +145,11 @@ export const livekitHandler = {
    * @returns Promise resolving when room is closed
    */
   async closeRoom(roomName: string): Promise<void> {
+    if (!livekitApiKey || !livekitApiSecret) {
+      console.warn('LiveKit API key or secret not provided, skipping room closing');
+      return;
+    }
+    
     try {
       await roomService.deleteRoom(roomName);
     } catch (error) {

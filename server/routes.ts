@@ -95,11 +95,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Room name is required' });
       }
       
+      if (!livekitApiKey || !livekitApiSecret) {
+        console.warn('LiveKit API key or secret not provided, returning mock success response');
+        return res.status(201).json({ success: true, roomName });
+      }
+      
       // Create the room
       await roomService.createRoom({
         name: roomName,
         emptyTimeout: 300, // Room closes after 5 minutes if empty
-        maxParticipants: 2  // Limit to user and AI assistant
+        maxParticipants: 10
       });
       
       return res.status(201).json({ success: true, roomName });
@@ -120,6 +125,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!roomName || !participantName) {
         return res.status(400).json({ message: 'Room name and participant name are required' });
+      }
+      
+      if (!livekitApiKey || !livekitApiSecret) {
+        console.warn('LiveKit API key or secret not provided, returning mock token');
+        // Return a mock token for development purposes
+        return res.status(200).json({ token: 'mock-token-for-development' });
       }
       
       // Create token

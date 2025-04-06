@@ -1,57 +1,64 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let errorText = "";
+    try {
+      const errorData = await res.json();
+      errorText = errorData.message || errorData.error || res.statusText;
+    } catch (e) {
+      errorText = res.statusText;
+    }
+    throw new Error(errorText);
   }
 }
 
-export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown | undefined,
-): Promise<Response> {
-  const res = await fetch(url, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+/**
+ * Make a request to the API with type safety
+ */
+export async function apiRequest<TResponse>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<TResponse> {
+  const res = await fetch(endpoint, {
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+    ...options,
   });
 
   await throwIfResNotOk(res);
-  return res;
+
+  return res.json();
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+}) => (endpoint: string) => Promise<T | null> =
+  ({ on401 }) =>
+  async (endpoint) => {
+    try {
+      return await apiRequest<T>(endpoint);
+    } catch (e) {
+      if (
+        on401 === "returnNull" &&
+        e instanceof Error &&
+        e.message.includes("Unauthorized")
+      ) {
+        return null;
+      }
+      throw e;
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
+      retry: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
-    },
-    mutations: {
-      retry: false,
+      staleTime: 1000 * 60, // 1 minute
     },
   },
 });

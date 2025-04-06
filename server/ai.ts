@@ -1,6 +1,48 @@
-import { AISession } from '@shared/schema';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { AISession } from '../shared/schema';
 
-// AI handler
+// Initialize Gemini API with the API key
+const apiKey = process.env.GOOGLE_AI_API_KEY;
+
+// Initialize the Google Generative AI instance if API key is available
+let genAI: GoogleGenerativeAI | null = null;
+if (apiKey) {
+  genAI = new GoogleGenerativeAI(apiKey);
+} else {
+  console.warn('Google AI API key is not provided. Using simulated AI responses instead.');
+}
+
+// Default model to use
+const DEFAULT_MODEL = 'gemini-pro';
+
+// Safety settings to apply to the model
+const safetySettings = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+  },
+];
+
+// Generation config
+const generationConfig = {
+  temperature: 0.7,
+  topP: 0.9,
+  topK: 40,
+  maxOutputTokens: 2048,
+};
+
 export const aiHandler = {
   /**
    * Process a user message and generate a response
@@ -9,39 +51,62 @@ export const aiHandler = {
    * @returns Promise with AI response
    */
   async processMessage(message: string, session?: AISession): Promise<string> {
+    if (!apiKey || !genAI) {
+      return this.simulateAIResponse(message);
+    }
+    
     try {
-      // Simple demo implementation - in a real app, this would call the Google AI API
-      const response = this.simulateAIResponse(message);
+      let history: { role: string, parts: string }[] = [];
       
-      // Update session if provided
+      // Add history from session if available
+      if (session && session.history.length > 0) {
+        // Convert session history to Google AI chat format
+        history = session.history.map(msg => ({
+          role: msg.role,
+          parts: msg.content
+        }));
+      }
+      
+      // Get the model
+      const modelName = session?.modelConfig?.model || DEFAULT_MODEL;
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        safetySettings,
+        generationConfig,
+      });
+      
+      // Start a chat session
+      const chat = model.startChat({
+        history,
+        generationConfig,
+      });
+      
+      // Generate a response
+      const result = await chat.sendMessage(message);
+      const response = result.response;
+      const text = response.text();
+      
+      // Update session if available
       if (session) {
-        // Add user message to history
         session.history.push({
           role: 'user',
           content: message,
           timestamp: Date.now()
         });
         
-        // Add AI response to history
         session.history.push({
           role: 'assistant',
-          content: response,
+          content: text,
           timestamp: Date.now()
         });
         
-        // Update last active time
         session.lastActive = Date.now();
-        
-        // Generate summary if needed
-        if (session.history.length > 20) {
-          await this.generateSummary(session);
-        }
       }
       
-      return response;
+      return text;
     } catch (error) {
-      console.error('Error processing message:', error);
-      throw error;
+      console.error('Error processing message with Google AI:', error);
+      return `I'm sorry, I encountered an error processing your request. Please try again later. (Error: ${(error as Error).message})`;
     }
   },
   
@@ -52,48 +117,43 @@ export const aiHandler = {
    * @returns Promise with generated code
    */
   async generateCode(prompt: string, language: string = 'javascript'): Promise<string> {
+    if (!apiKey || !genAI) {
+      return this.simulateCodeGeneration(prompt, language);
+    }
+    
     try {
-      // Demo implementation - in a real app, this would call the Google AI API
-      let code = '';
+      // Craft a prompt specific for code generation
+      const fullPrompt = `Generate ${language} code for the following request: ${prompt}. 
+      Return ONLY the code without explanation or comments outside the code.
+      Make sure to add appropriate imports and include proper error handling.`;
       
-      if (language === 'javascript') {
-        code = `// Generated JavaScript code based on: ${prompt}
-function main() {
-  console.log("Hello, world!");
-  
-  // Implementation based on prompt
-  const data = [1, 2, 3, 4, 5];
-  const result = data.map(x => x * 2);
-  
-  console.log("Result:", result);
-  return result;
-}
-
-main();`;
-      } else if (language === 'html') {
-        code = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${prompt}</title>
-</head>
-<body>
-  <h1>${prompt}</h1>
-  <div id="app">
-    <!-- Content would be generated based on the prompt -->
-    <p>This is a sample HTML page.</p>
-  </div>
-</body>
-</html>`;
-      } else {
-        code = `// Generated code for ${language} based on: ${prompt}\n// Sample implementation`;
+      // Get the model (using gemini-pro for code generation)
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-pro',
+        safetySettings,
+        generationConfig: {
+          ...generationConfig,
+          temperature: 0.2, // Lower temperature for more deterministic output
+        },
+      });
+      
+      // Generate code
+      const result = await model.generateContent(fullPrompt);
+      const response = result.response;
+      let code = response.text();
+      
+      // Ensure the code is properly formatted with backticks if not already
+      if (!code.includes('```')) {
+        code = '```' + language + '\n' + code + '\n```';
       }
       
       return code;
     } catch (error) {
-      console.error('Error generating code:', error);
-      throw error;
+      console.error('Error generating code with Google AI:', error);
+      return `// Error generating code: ${(error as Error).message}
+      
+// Fallback example for ${language}:
+${this.simulateCodeGeneration(prompt, language)}`;
     }
   },
   
@@ -103,18 +163,42 @@ main();`;
    * @returns Promise with explanation
    */
   async explainCode(code: string): Promise<string> {
+    if (!apiKey || !genAI) {
+      return this.simulateCodeExplanation(code);
+    }
+    
     try {
-      // Demo implementation - in a real app, this would call the Google AI API
-      return `This code appears to be ${code.includes('function') ? 'JavaScript' : code.includes('<html>') ? 'HTML' : 'unknown language'} code.
+      // Craft a prompt for code explanation
+      const prompt = `Explain the following code in detail, highlighting important concepts and patterns:
+      
+${code}
 
-Here's a line-by-line explanation:
-
-${code.split('\n').slice(0, 5).map((line, i) => `Line ${i+1}: ${line.trim() ? `This line ${this.explainCodeLine(line)}` : 'This is a blank line for readability.'}`).join('\n')}
-
-${code.split('\n').length > 5 ? `\n...and ${code.split('\n').length - 5} more lines...\n\nIn summary, this code ${code.includes('function') ? 'defines functions and performs operations' : code.includes('<html>') ? 'creates an HTML document structure' : 'performs various operations'}.` : ''}`;
+Provide your explanation in these sections:
+1. Overview: What the code does at a high level
+2. Key Components: Breakdown of main parts and their purpose
+3. Implementation Details: How the code achieves its purpose
+4. Potential Improvements: Suggestions for making the code better`;
+      
+      // Get the model
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-pro',
+        safetySettings,
+        generationConfig,
+      });
+      
+      // Generate explanation
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const explanation = response.text();
+      
+      return explanation;
     } catch (error) {
-      console.error('Error explaining code:', error);
-      throw error;
+      console.error('Error explaining code with Google AI:', error);
+      return `Error explaining code: ${(error as Error).message}
+      
+Here's a basic explanation instead:
+      
+${this.simulateCodeExplanation(code)}`;
     }
   },
   
@@ -124,13 +208,22 @@ ${code.split('\n').length > 5 ? `\n...and ${code.split('\n').length - 5} more li
    * @returns Explanation string
    */
   explainCodeLine(line: string): string {
-    if (line.includes('function')) return 'defines a function.';
-    if (line.includes('console.log')) return 'outputs to the console.';
-    if (line.includes('const') || line.includes('let') || line.includes('var')) return 'declares a variable.';
-    if (line.includes('return')) return 'returns a value from a function.';
-    if (line.includes('<')) return 'defines an HTML element.';
-    if (line.includes('//')) return 'is a comment explaining the code.';
-    return 'performs an operation.';
+    // This is a very simplified simulation
+    if (line.includes('import')) {
+      return 'This line imports required modules or functions from external libraries.';
+    } else if (line.includes('function')) {
+      return 'This line defines a function that encapsulates reusable code.';
+    } else if (line.includes('return')) {
+      return 'This line specifies the value to be returned from the function.';
+    } else if (line.includes('if')) {
+      return 'This line starts a conditional statement to execute code based on a condition.';
+    } else if (line.includes('for')) {
+      return 'This line starts a loop to iterate over a collection or a range of values.';
+    } else if (line.includes('const') || line.includes('let') || line.includes('var')) {
+      return 'This line declares a variable to store data.';
+    } else {
+      return 'This is a code statement that performs an operation or action.';
+    }
   },
   
   /**
@@ -139,30 +232,78 @@ ${code.split('\n').length > 5 ? `\n...and ${code.split('\n').length - 5} more li
    * @returns Promise resolving when summary is generated
    */
   async generateSummary(session: AISession): Promise<void> {
+    if (!session || session.history.length < 5) {
+      // Not enough history to summarize
+      return;
+    }
+    
+    const lastSummaryTimestamp = session.summaries.length > 0 
+      ? session.summaries[session.summaries.length - 1].toTimestamp 
+      : 0;
+    
+    // Get messages since last summary
+    const newMessages = session.history.filter(msg => msg.timestamp > lastSummaryTimestamp);
+    
+    if (newMessages.length < 5) {
+      // Not enough new messages to summarize
+      return;
+    }
+    
+    if (!apiKey || !genAI) {
+      // Create a simple summary without AI
+      const topic = this.getSummaryTopic(newMessages.map(msg => msg.content).join(' '));
+      
+      session.summaries.push({
+        content: `Discussion about ${topic}`,
+        fromTimestamp: newMessages[0].timestamp,
+        toTimestamp: newMessages[newMessages.length - 1].timestamp
+      });
+      
+      return;
+    }
+    
     try {
-      // Get messages to summarize (all except the most recent 10)
-      const messagesToSummarize = session.history.slice(0, -10);
+      // Prepare the conversation history for summarization
+      const conversationText = newMessages.map(msg => 
+        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+      ).join('\n\n');
       
-      if (messagesToSummarize.length === 0) return;
+      // Craft a prompt for summarization
+      const prompt = `Summarize the following conversation in 2-3 sentences, focusing on the main topics and key points discussed:
       
-      // Generate summary (simple implementation for demo)
-      const firstTimestamp = messagesToSummarize[0].timestamp;
-      const lastTimestamp = messagesToSummarize[messagesToSummarize.length - 1].timestamp;
+${conversationText}`;
       
-      const summary = `Summary of conversation from ${new Date(firstTimestamp).toLocaleString()} to ${new Date(lastTimestamp).toLocaleString()}: Discussed ${this.getSummaryTopic(messagesToSummarize.map(m => m.content).join(' '))}`;
+      // Get the model
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-pro',
+        safetySettings,
+        generationConfig: {
+          ...generationConfig,
+          maxOutputTokens: 150, // Shorter output for summaries
+        },
+      });
+      
+      // Generate summary
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const summary = response.text();
       
       // Add summary to session
       session.summaries.push({
         content: summary,
-        fromTimestamp: firstTimestamp,
-        toTimestamp: lastTimestamp
+        fromTimestamp: newMessages[0].timestamp,
+        toTimestamp: newMessages[newMessages.length - 1].timestamp
       });
-      
-      // Remove summarized messages from active history
-      session.history = session.history.slice(-10);
     } catch (error) {
-      console.error('Error generating summary:', error);
-      throw error;
+      console.error('Error generating summary with Google AI:', error);
+      // Create a simple fallback summary
+      const topic = this.getSummaryTopic(newMessages.map(msg => msg.content).join(' '));
+      
+      session.summaries.push({
+        content: `Discussion about ${topic} (summary generation failed)`,
+        fromTimestamp: newMessages[0].timestamp,
+        toTimestamp: newMessages[newMessages.length - 1].timestamp
+      });
     }
   },
   
@@ -172,10 +313,26 @@ ${code.split('\n').length > 5 ? `\n...and ${code.split('\n').length - 5} more li
    * @returns Topic string
    */
   getSummaryTopic(text: string): string {
-    if (text.toLowerCase().includes('livekit')) return 'LiveKit integration and real-time communication';
-    if (text.toLowerCase().includes('code')) return 'code generation and development';
-    if (text.toLowerCase().includes('ai') || text.toLowerCase().includes('gemini')) return 'AI and Gemini models';
-    return 'various development topics';
+    // This is a very simplified implementation for demo purposes
+    const words = text.toLowerCase().split(/\s+/);
+    const excludedWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'to', 'in', 'on', 'at', 'with', 'by', 'for']);
+    
+    // Count word frequencies
+    const wordFrequency: Record<string, number> = {};
+    
+    for (const word of words) {
+      if (word.length > 3 && !excludedWords.has(word)) {
+        wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+      }
+    }
+    
+    // Find most frequent words
+    let topWords = Object.entries(wordFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(entry => entry[0]);
+    
+    return topWords.join(', ') || 'general topics';
   },
   
   /**
@@ -184,22 +341,163 @@ ${code.split('\n').length > 5 ? `\n...and ${code.split('\n').length - 5} more li
    * @returns Simulated AI response
    */
   simulateAIResponse(message: string): string {
-    // Simple response simulation based on keywords
-    const lowerMessage = message.toLowerCase();
+    const responses = [
+      "I understand you're asking about code development. While I'm in demonstration mode without the Google AI API key, I can still help with some basic guidance.",
+      "Thanks for your question. I'm currently running in simulation mode without access to the full AI capabilities, but I can offer some general advice.",
+      "Without the Google AI API key, I'm providing a simulated response. For full AI capabilities, please add the API key to your environment variables.",
+      "I'd be happy to help with your coding questions once I have access to the Google AI API. For now, I can suggest some general approaches.",
+      "That's an interesting coding challenge. In simulation mode, I can't provide a detailed response, but I can point you in the right direction.",
+    ];
     
-    if (lowerMessage.includes('livekit') || lowerMessage.includes('room') || lowerMessage.includes('connect')) {
-      return "I'd be happy to help you set up a LiveKit room connection! Here's how you can implement it:\n\n```javascript\nimport { Room } from 'livekit-client';\n\nconst room = new Room({\n  adaptiveStream: true,\n  dynacast: true,\n  audioDeviceId: 'default'\n});\n\nasync function connectToRoom(token) {\n  try {\n    await room.connect('wss://your-project-url.livekit.cloud', token);\n    console.log('Connected to room:', room.name);\n    setupAudioTracks();\n  } catch (error) {\n    console.error('Error connecting to room:', error);\n  }\n}\n```\n\nYou'll need to first generate a token from your server. Here's how to set up the audio tracks after connecting:\n\n```javascript\nasync function setupAudioTracks() {\n  // Publish local audio\n  const microphoneTrack = await createLocalAudioTrack();\n  await room.localParticipant.publishTrack(microphoneTrack);\n  \n  // Subscribe to remote tracks\n  room.on('trackSubscribed', (track, publication, participant) => {\n    if (track.kind === 'audio') {\n      // Attach audio to audio element\n      const audioElement = document.getElementById('remote-audio');\n      track.attach(audioElement);\n    }\n  });\n}\n```\n\nWould you like me to help implement the server-side token generation as well?";
+    const codeRelatedResponses = [
+      "When writing code, remember to focus on readability and maintainability. Use clear variable names and add comments to explain complex logic.",
+      "A good approach to this problem would be to break it down into smaller, manageable steps and solve each step individually.",
+      "For this kind of task, you might want to consider using a design pattern like Observer, Factory, or Singleton depending on your specific needs.",
+      "Testing is crucial for reliable code. Consider writing unit tests for your functions to ensure they behave as expected under various conditions.",
+      "When optimizing code, focus on algorithms and data structures first before micro-optimizations. The choice of algorithm often has a bigger impact on performance."
+    ];
+    
+    // Select a random general response
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    
+    // Select a random code-related tip
+    const randomCodeTip = codeRelatedResponses[Math.floor(Math.random() * codeRelatedResponses.length)];
+    
+    // Combine them
+    return `${randomResponse}\n\n${randomCodeTip}\n\n(Note: This is a simulated response. To enable genuine AI-powered responses, please add the GOOGLE_AI_API_KEY to your environment variables.)`;
+  },
+  
+  /**
+   * Simulate code generation (for demo when API key is not available)
+   * @param prompt User prompt
+   * @param language Programming language
+   * @returns Simulated generated code
+   */
+  simulateCodeGeneration(prompt: string, language: string): string {
+    // Map of language to simulated code examples
+    const codeExamples: Record<string, string> = {
+      javascript: `// A simulated JavaScript example
+function processData(input) {
+  try {
+    // Parse the input data
+    const data = JSON.parse(input);
+    
+    // Process each item
+    const results = data.map(item => {
+      return {
+        id: item.id,
+        value: item.value * 2,
+        processed: true
+      };
+    });
+    
+    return results;
+  } catch (error) {
+    console.error("Error processing data:", error);
+    return null;
+  }
+}
+
+// Example usage
+const sampleData = '[{"id": 1, "value": 5}, {"id": 2, "value": 10}]';
+const result = processData(sampleData);
+console.log(result);`,
+      
+      python: `# A simulated Python example
+import json
+
+def process_data(input_str):
+    try:
+        # Parse the input data
+        data = json.loads(input_str)
+        
+        # Process each item
+        results = []
+        for item in data:
+            results.append({
+                'id': item['id'],
+                'value': item['value'] * 2,
+                'processed': True
+            })
+        
+        return results
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        return None
+
+# Example usage
+sample_data = '[{"id": 1, "value": 5}, {"id": 2, "value": 10}]'
+result = process_data(sample_data)
+print(result)`,
+      
+      java: `// A simulated Java example
+import java.util.ArrayList;
+import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+public class DataProcessor {
+    public List<JSONObject> processData(String input) {
+        try {
+            // Parse the input data
+            JSONArray data = new JSONArray(input);
+            List<JSONObject> results = new ArrayList<>();
+            
+            // Process each item
+            for (int i = 0; i < data.length(); i++) {
+                JSONObject item = data.getJSONObject(i);
+                JSONObject result = new JSONObject();
+                result.put("id", item.getInt("id"));
+                result.put("value", item.getInt("value") * 2);
+                result.put("processed", true);
+                results.add(result);
+            }
+            
+            return results;
+        } catch (Exception e) {
+            System.err.println("Error processing data: " + e.getMessage());
+            return null;
+        }
     }
     
-    if (lowerMessage.includes('gemini') || lowerMessage.includes('ai') || lowerMessage.includes('model')) {
-      return "Gemini is Google's advanced AI model that I'm based on. To integrate Gemini into your application, you can use the Google AI Node.js client. Here's a simple example:\n\n```javascript\nconst { GoogleGenerativeAI } = require('@google/generative-ai');\n\n// Access your API key (use environment variables in production)\nconst genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);\n\nasync function generateContent(prompt) {\n  // For text-only input, use the gemini-pro model\n  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });\n  \n  const result = await model.generateContent(prompt);\n  const response = await result.response;\n  return response.text();\n}\n\n// Example usage\ngenerateContent('Explain how to use LiveKit with Gemini')\n  .then(text => console.log(text))\n  .catch(err => console.error(err));\n```\n\nYou can find more details in the Google AI documentation.\n\nDo you need help with any specific aspect of AI integration?";
+    public static void main(String[] args) {
+        String sampleData = "[{\"id\": 1, \"value\": 5}, {\"id\": 2, \"value\": 10}]";
+        List<JSONObject> result = new DataProcessor().processData(sampleData);
+        System.out.println(result);
     }
+}`
+    };
     
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
-      return "Hello! I'm your Gemini-powered coding assistant. I can help with:\n\n- Writing and debugging code\n- Setting up LiveKit for real-time communication\n- Integrating AI capabilities\n- Explaining programming concepts\n\nWhat would you like to work on today?";
-    }
+    // Get the code example for the requested language, or default to JavaScript
+    const code = codeExamples[language.toLowerCase()] || codeExamples.javascript;
     
-    // Default response
-    return "I'm here to help with your development needs. I can assist with:\n\n- Setting up LiveKit for real-time audio/video\n- Integrating Google AI models like Gemini\n- Writing and debugging code\n- Explaining programming concepts\n- Providing code examples and tutorials\n\nJust let me know what you'd like to work on, and we can get started!";
+    return `\`\`\`${language}\n${code}\n\`\`\`\n\n(Note: This is a simulated code example. To enable genuine AI-powered code generation, please add the GOOGLE_AI_API_KEY to your environment variables.)`;
+  },
+  
+  /**
+   * Simulate code explanation (for demo when API key is not available)
+   * @param code Code to explain
+   * @returns Simulated explanation
+   */
+  simulateCodeExplanation(code: string): string {
+    return `# Code Explanation (Simulated)
+
+## Overview
+This code appears to be a data processing function that takes input data, applies transformations, and returns the processed results.
+
+## Key Components
+- Input parsing: The code parses JSON input data
+- Data processing: It applies transformations to each item in the data
+- Error handling: The code includes try/catch blocks to handle potential errors
+
+## Implementation Details
+The function first parses the input string into a data structure, then iterates through each item, doubling the 'value' property and adding a 'processed' flag. The results are collected and returned.
+
+## Potential Improvements
+- Add input validation to check for required fields
+- Implement more robust error handling with specific error types
+- Consider adding documentation for better maintainability
+
+(Note: This is a simulated explanation. To enable genuine AI-powered code explanations, please add the GOOGLE_AI_API_KEY to your environment variables.)`;
   }
 };

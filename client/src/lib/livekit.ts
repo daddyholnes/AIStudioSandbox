@@ -1,219 +1,206 @@
-import { Room, RoomEvent, LocalTrack, TrackPublication, RemoteTrack, RemoteParticipant, LocalParticipant, Track, createLocalTracks } from 'livekit-client';
+import {
+  Room,
+  RoomEvent,
+  LocalTrack,
+  RemoteTrack,
+  RemoteParticipant,
+  TrackPublication,
+  ConnectionState,
+  Track,
+  LocalAudioTrack,
+  createLocalAudioTrack
+} from 'livekit-client';
 import { apiRequest } from './queryClient';
 
-// Room instance
 let room: Room | null = null;
-let microphoneTrack: LocalTrack | null = null;
 
-// Initialize room
+/**
+ * Initialize a new LiveKit room instance
+ */
 export const initRoom = (): Room => {
   if (!room) {
-    room = new Room({
-      adaptiveStream: true,
-      dynacast: true,
-      // Don't use audioDeviceId here as it's not in the Room options
-    });
-    
-    // Set up event listeners
+    room = new Room();
     setupRoomEventListeners();
   }
-  
   return room;
 };
 
-// Get the room instance
+/**
+ * Get the current room instance
+ */
 export const getRoom = (): Room | null => {
   return room;
 };
 
-// Connect to a room
+/**
+ * Connect to a LiveKit room with the provided token
+ */
 export const connectToRoom = async (token: string): Promise<boolean> => {
+  if (!room) {
+    initRoom();
+  }
+
+  if (!room) {
+    console.error('Failed to initialize room');
+    return false;
+  }
+
   try {
-    const currentRoom = initRoom();
-    
-    if (currentRoom.state !== 'disconnected') {
-      console.log('Already connected or connecting to a room');
-      return currentRoom.state === 'connected';
-    }
-    
-    // Connect to the room
-    await currentRoom.connect('wss://dartopia-gvu1e64v.livekit.cloud', token);
-    console.log('Connected to room:', currentRoom.name);
-    
-    return true;
+    await room.connect(import.meta.env.VITE_LIVEKIT_URL || 'wss://your-livekit-server.com', token);
+    return room.state === ConnectionState.Connected;
   } catch (error) {
     console.error('Error connecting to room:', error);
     return false;
   }
 };
 
-// Disconnect from the room
+/**
+ * Disconnect from the current LiveKit room
+ */
 export const disconnectFromRoom = () => {
   if (room) {
     room.disconnect();
-    console.log('Disconnected from room');
   }
 };
 
-// Toggle microphone
+/**
+ * Toggle microphone on/off
+ */
 export const toggleMicrophone = async (enabled: boolean): Promise<boolean> => {
+  if (!room) {
+    return false;
+  }
+
   try {
-    if (!room) {
-      console.error('Room not initialized');
-      return false;
-    }
-    
-    const participant = room.localParticipant;
-    
     if (enabled) {
-      // Enable microphone if not already enabled
-      if (!microphoneTrack) {
-        microphoneTrack = await createMicrophoneTrack();
-        await participant.publishTrack(microphoneTrack);
+      // If we need to enable the microphone
+      const audioPublications = room.localParticipant.getTrackPublications()
+        .filter(pub => pub.kind === Track.Kind.Audio);
+      
+      if (audioPublications.length > 0) {
+        // If we already have an audio track, just unmute it
+        for (const pub of audioPublications) {
+          pub.setMuted(false);
+        }
       } else {
-        // Unpublish and republish if already exists
-        await participant.publishTrack(microphoneTrack);
+        // Otherwise create a new audio track
+        const track = await createMicrophoneTrack();
+        await room.localParticipant.publishTrack(track);
       }
     } else {
-      // Disable microphone
-      if (microphoneTrack) {
-        await participant.unpublishTrack(microphoneTrack);
+      // If we need to disable the microphone, mute all audio tracks
+      const audioPublications = room.localParticipant.getTrackPublications()
+        .filter(pub => pub.kind === Track.Kind.Audio);
+      
+      for (const pub of audioPublications) {
+        pub.setMuted(true);
       }
     }
     
-    return enabled;
+    // Return the current mute state (true means audio is enabled)
+    const audioPublications = room.localParticipant.getTrackPublications()
+      .filter(pub => pub.kind === Track.Kind.Audio);
+    
+    return audioPublications.some(pub => !pub.isMuted);
   } catch (error) {
     console.error('Error toggling microphone:', error);
     return false;
   }
 };
 
-// Create a local audio track
-export const createMicrophoneTrack = async (): Promise<LocalTrack> => {
+/**
+ * Create a microphone track for audio streaming
+ */
+export const createMicrophoneTrack = async (): Promise<LocalAudioTrack> => {
   try {
-    const tracks = await createLocalTracks({
-      audio: {
-        deviceId: 'default',
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      },
-      video: false
+    return await createLocalAudioTrack({
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true
     });
-    
-    // Return the audio track
-    const audioTrack = tracks.find(track => track.kind === Track.Kind.Audio);
-    
-    if (!audioTrack) {
-      throw new Error('No audio track created');
-    }
-    
-    return audioTrack;
   } catch (error) {
-    console.error('Error creating local audio track:', error);
+    console.error('Error creating microphone track:', error);
     throw error;
   }
 };
 
-// Set up room event listeners
+/**
+ * Setup event listeners for the LiveKit room
+ */
 const setupRoomEventListeners = () => {
   if (!room) return;
-  
-  // When a participant connects
+
   room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-    console.log('Participant connected:', participant.identity);
+    console.log(`Participant connected: ${participant.identity}`);
   });
-  
-  // When a participant disconnects
+
   room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
-    console.log('Participant disconnected:', participant.identity);
+    console.log(`Participant disconnected: ${participant.identity}`);
   });
-  
-  // When the local participant is connected to the room
-  room.on(RoomEvent.Connected, () => {
-    console.log('Connected to room:', room?.name);
-  });
-  
-  // When the connection is disrupted
-  room.on(RoomEvent.Disconnected, () => {
-    console.log('Disconnected from room');
-  });
-  
-  // When a new track is subscribed
+
   room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: TrackPublication, participant: RemoteParticipant) => {
-    console.log('Track subscribed:', track.kind, 'from', participant.identity);
+    console.log(`Subscribed to ${track.kind} track from ${participant.identity}`);
     
     if (track.kind === Track.Kind.Audio) {
-      // Attach audio to an audio element
-      const audioElement = document.createElement('audio');
-      audioElement.id = `audio-${participant.identity}`;
-      audioElement.autoplay = true;
-      audioElement.controls = false;
-      document.body.appendChild(audioElement);
-      
-      track.attach(audioElement);
-    }
-  });
-  
-  // When a track is unsubscribed
-  room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: TrackPublication, participant: RemoteParticipant) => {
-    console.log('Track unsubscribed:', track.kind, 'from', participant.identity);
-    
-    // Detach and remove any elements
-    track.detach();
-    
-    if (track.kind === Track.Kind.Audio) {
-      const audioElement = document.getElementById(`audio-${participant.identity}`);
-      if (audioElement) {
-        document.body.removeChild(audioElement);
+      try {
+        // Attach audio track to audio element
+        const audioElement = new Audio();
+        // Use mediaStreamTrack for MediaStream creation
+        const mediaTrack = track.mediaStreamTrack;
+        if (mediaTrack) {
+          audioElement.srcObject = new MediaStream([mediaTrack]);
+          audioElement.play().catch(error => console.error('Error playing audio:', error));
+        }
+      } catch (error) {
+        console.error('Error attaching audio track:', error);
       }
     }
   });
-  
-  // When receiving data through the channel
+
+  room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: TrackPublication, participant: RemoteParticipant) => {
+    console.log(`Unsubscribed from ${track.kind} track from ${participant.identity}`);
+  });
+
   room.on(RoomEvent.DataReceived, (data: Uint8Array, participant?: RemoteParticipant) => {
     try {
-      const message = JSON.parse(new TextDecoder().decode(data));
-      console.log('Data received:', message, 'from', participant?.identity || 'server');
-      
-      // Handle different message types
-      if (message.type === 'chat') {
-        // Handle chat message
-        console.log('Chat message:', message.content);
-      } else if (message.type === 'system') {
-        // Handle system message
-        console.log('System message:', message.content);
-      }
+      const decodedData = new TextDecoder().decode(data);
+      const parsedData = JSON.parse(decodedData);
+      console.log('Received data:', parsedData, 'from:', participant?.identity);
     } catch (error) {
-      console.error('Error processing received data:', error);
+      console.error('Error decoding received data:', error);
     }
   });
 };
 
-// Generate a room token (request from server)
+/**
+ * Generate a token for connecting to a LiveKit room
+ */
 export const generateToken = async (roomName: string, participantName: string): Promise<string> => {
   try {
-    const response = await apiRequest('POST', '/api/livekit/token', {
-      roomName,
-      participantName
+    const response = await apiRequest<{ token: string }>('/api/livekit/token', {
+      method: 'POST',
+      body: JSON.stringify({
+        roomName,
+        participantName
+      })
     });
-    
-    const data = await response.json();
-    return data.token;
+    return response.token;
   } catch (error) {
     console.error('Error generating token:', error);
     throw error;
   }
 };
 
-// Create a room (request from server)
+/**
+ * Create a new LiveKit room
+ */
 export const createRoom = async (roomName: string): Promise<{ success: boolean; roomName: string }> => {
   try {
-    const response = await apiRequest('POST', '/api/livekit/room', {
-      roomName
+    const response = await apiRequest<{ success: boolean; roomName: string }>('/api/livekit/room', {
+      method: 'POST',
+      body: JSON.stringify({ roomName })
     });
-    
-    return await response.json();
+    return response;
   } catch (error) {
     console.error('Error creating room:', error);
     throw error;
