@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { livekitHandler } from "./livekit";
 import { aiHandler } from "./ai";
 import { webSocketRoomManager } from "./services/websocket";
+import { codeAssistantFlow, chatAssistantFlow, imageGenerationFlow } from './services/genkit';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
@@ -413,6 +414,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error getting room:', error);
       return res.status(500).json({ 
         message: 'Failed to get room details',
+        error: (error as Error).message
+      });
+    }
+  });
+
+  // Genkit API endpoints
+  
+  // Process a chat message with Genkit
+  app.post('/api/genkit/chat', async (req, res) => {
+    try {
+      const { message, chatHistory, enableReasoning } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: 'Message is required' });
+      }
+      
+      // Convert history to the format expected by Genkit
+      const history = (chatHistory || []).map((msg: any) => ({
+        role: msg.role, 
+        content: msg.content
+      }));
+      
+      // Process through Genkit flow
+      const response = await chatAssistantFlow({
+        userMessage: message,
+        chatHistory: history,
+        enableReasoning: !!enableReasoning
+      });
+      
+      return res.status(200).json({
+        response,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error processing Genkit chat:', error);
+      return res.status(500).json({ 
+        message: 'Failed to process message with Genkit',
+        error: (error as Error).message
+      });
+    }
+  });
+  
+  // Generate code with Genkit
+  app.post('/api/genkit/code', async (req, res) => {
+    try {
+      const { prompt, language, currentCode } = req.body;
+      
+      if (!prompt) {
+        return res.status(400).json({ message: 'Prompt is required' });
+      }
+      
+      // Generate code using Genkit flow
+      const code = await codeAssistantFlow({
+        userPrompt: prompt,
+        language: language || 'typescript',
+        currentCode: currentCode || ''
+      });
+      
+      return res.status(200).json({
+        code,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error generating code with Genkit:', error);
+      return res.status(500).json({ 
+        message: 'Failed to generate code with Genkit',
+        error: (error as Error).message
+      });
+    }
+  });
+  
+  // Generate images with Genkit
+  app.post('/api/genkit/image', async (req, res) => {
+    try {
+      const { prompt, style, size } = req.body;
+      
+      if (!prompt) {
+        return res.status(400).json({ message: 'Prompt is required' });
+      }
+      
+      // Generate image using Genkit flow
+      const imageResult = await imageGenerationFlow({
+        prompt,
+        style: style || 'vivid',
+        size: size || '1024x1024'
+      });
+      
+      return res.status(200).json({
+        imageUrl: imageResult.imageUrl,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error generating image with Genkit:', error);
+      return res.status(500).json({ 
+        message: 'Failed to generate image with Genkit',
         error: (error as Error).message
       });
     }

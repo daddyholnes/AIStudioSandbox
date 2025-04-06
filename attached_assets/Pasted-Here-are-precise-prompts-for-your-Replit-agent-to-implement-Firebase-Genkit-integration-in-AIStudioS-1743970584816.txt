@@ -1,0 +1,133 @@
+Here are precise prompts for your Replit agent to implement Firebase Genkit integration in AIStudioSandbox:
+
+1. Initial Genkit Setup
+
+bash
+# Prompt for Replit agent:
+npm install @genkit-ai/core @genkit-ai/googleai firebase-functions
+2. Genkit Configuration
+
+typescript
+// server/index.ts prompt:
+import { genkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
+
+export const ai = genkit({
+  plugins: [
+    googleAI({
+      apiVersion: "v2beta",
+      location: "us-central1"
+    })
+  ],
+  enableTracingAndMetrics: true
+});
+3. Service Account Setup
+
+bash
+# Environment variable prompt:
+export GOOGLE_APPLICATION_CREDENTIALS="service-account.json"
+4. Genkit Flow Implementation
+
+typescript
+// shared/flows/codeAssistant.ts prompt:
+import { flow } from '@genkit-ai/core';
+import { z } from 'zod';
+
+export const codeAssistantFlow = flow({
+  name: 'codeAssistant',
+  inputSchema: z.object({
+    userPrompt: z.string(),
+    currentCode: z.string().optional(),
+  }),
+  outputSchema: z.object({
+    generatedCode: z.string(),
+    explanation: z.string()
+  }),
+  steps: {
+    analyze: async ({ userPrompt }) => {
+      return ai.generate({
+        model: 'gemini-2.0',
+        prompt: `Analyze coding request: ${userPrompt}`
+      });
+    },
+    generate: async ({ currentCode }) => {
+      return ai.generate({
+        model: 'gemini-2.0',
+        prompt: `Generate code based on: ${currentCode}`
+      });
+    }
+  }
+});
+5. API Endpoint Creation
+
+typescript
+// server/routes/genkit.ts prompt:
+import { codeAssistantFlow } from '../../shared/flows/codeAssistant';
+
+router.post('/genkit/code', async (req, res) => {
+  const result = await codeAssistantFlow(req.body);
+  res.json(result);
+});
+6. Client-Side Integration
+
+typescript
+// client/src/api/genkit.ts prompt:
+export const genkitRequest = async (prompt: string) => {
+  return fetch('/api/genkit/code', {
+    method: 'POST',
+    body: JSON.stringify({ userPrompt: prompt })
+  });
+};
+7. Live Collaboration Hook
+
+typescript
+// server/websocket.ts prompt:
+import { codeAssistantFlow } from '../shared/flows/codeAssistant';
+
+wsServer.on('message', async (message) => {
+  if (message.type === 'codeRequest') {
+    const result = await codeAssistantFlow(message.content);
+    wsServer.broadcast('codeUpdate', result);
+  }
+});
+8. Deployment Configuration
+
+bash
+# Firebase deployment prompt:
+npm install -g firebase-tools
+firebase init functions
+9. Authentication Setup
+
+bash
+# Replit environment prompt:
+echo "GENKIT_PROJECT_ID=your-project-id" >> .env
+echo "GOOGLE_APPLICATION_CREDENTIALS=service-account.json" >> .env
+10. Testing Command
+
+bash
+# Test runner prompt:
+npm test -- --config=genkit.config.ts
+Third-Party Account Integration Steps
+
+For OpenAI (optional):
+
+bash
+# Prompt for Replit agent:
+npm install @genkit-ai/openai
+export OPENAI_API_KEY="your-key"
+For Anthropic (optional):
+
+bash
+# Prompt for Replit agent: 
+npm install @genkit-ai/anthropic
+export ANTHROPIC_API_KEY="your-key"
+Monitoring Setup
+
+typescript
+// server/monitoring.ts prompt:
+import { monitor } from '@genkit-ai/core';
+
+monitor.requests({
+  projectId: process.env.GENKIT_PROJECT_ID,
+  keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS
+});

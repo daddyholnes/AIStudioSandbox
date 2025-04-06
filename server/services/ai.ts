@@ -3,13 +3,15 @@ import { googleAIHandler } from './google';
 import { openAIHandler } from './openai';
 import { anthropicHandler } from './anthropic';
 import { vertexAIHandler } from './vertexai';
+import { genkitHandler } from './genkit';
 
 // Supported AI providers
 export enum AIProvider {
   GOOGLE = 'google',
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',
-  VERTEX = 'vertex'
+  VERTEX = 'vertex',
+  GENKIT = 'genkit'
 }
 
 // Provider availability check
@@ -17,7 +19,8 @@ const isProviderAvailable = {
   [AIProvider.GOOGLE]: Boolean(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY),
   [AIProvider.OPENAI]: Boolean(process.env.OPENAI_API_KEY),
   [AIProvider.ANTHROPIC]: Boolean(process.env.ANTHROPIC_API_KEY),
-  [AIProvider.VERTEX]: vertexAIHandler.isAvailable()
+  [AIProvider.VERTEX]: vertexAIHandler.isAvailable(),
+  [AIProvider.GENKIT]: Boolean(process.env.GOOGLE_API_KEY || process.env.GOOGLE_APPLICATION_CREDENTIALS)
 };
 
 // Get handler for the specified provider
@@ -31,6 +34,8 @@ function getHandlerForProvider(provider: AIProvider) {
       return anthropicHandler;
     case AIProvider.VERTEX:
       return vertexAIHandler;
+    case AIProvider.GENKIT:
+      return genkitHandler;
     default:
       throw new Error(`Unsupported AI provider: ${provider}`);
   }

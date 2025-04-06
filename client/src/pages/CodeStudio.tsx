@@ -6,6 +6,7 @@ import EditorPanel from '../components/EditorPanel';
 import AIPanel from '../components/AIPanel';
 import StatusBar from '../components/StatusBar';
 import OutputPanel from '../components/OutputPanel';
+import SettingsPanel from '../components/SettingsPanel';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 // Define ProjectFileInfo type for the client-side components
@@ -142,6 +143,10 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   const handleToggleAIPanel = () => {
     setActivePanel(activePanel === 'ai' ? '' : 'ai');
   };
+  
+  const handleToggleSettingsPanel = () => {
+    setActivePanel(activePanel === 'settings' ? '' : 'settings');
+  };
 
   const executeCode = async () => {
     // Add a loading message
@@ -203,6 +208,7 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
         <Sidebar 
           onToggleProjectPanel={handleToggleProjectPanel}
           onToggleAIPanel={handleToggleAIPanel}
+          onToggleSettingsPanel={handleToggleSettingsPanel}
           activePanel={activePanel}
         />
         
@@ -246,6 +252,20 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
                 <AIPanel 
                   roomConnected={roomConnected}
                   roomName={roomName}
+                />
+              </ResizablePanel>
+            </>
+          )}
+          
+          {activePanel === 'settings' && (
+            <>
+              <ResizableHandle />
+              <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+                <SettingsPanel 
+                  aiModel={aiModel}
+                  setAiModel={setAiModel}
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
                 />
               </ResizablePanel>
             </>
