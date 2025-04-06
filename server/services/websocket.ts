@@ -47,10 +47,10 @@ export class WebSocketRoomManager {
       return;
     }
     
-    // Create WebSocket server
+    // Create WebSocket server with a unique path
     this.wss = new WebSocketServer({ 
       server,
-      path: '/ws'
+      path: '/ws/collab'
     });
     
     log('WebSocket collaboration server initialized', 'websocket');
