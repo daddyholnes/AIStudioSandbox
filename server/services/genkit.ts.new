@@ -124,24 +124,7 @@ export const genkitHandler = {
 
 // Export for backward compatibility and to avoid breaking other parts of the app
 export const genkitAI = googleAI;
-export const chatAssistantFlow = {
-  invoke: async (params: any) => {
-    return await genkitHandler.processMessage(params.message, { history: params.history } as any);
-  }
-};
-export const codeAssistantFlow = {
-  invoke: async (params: any) => {
-    return await genkitHandler.generateCode(params.prompt, params.language);
-  }
-};
-export const codeExplanationFlow = {
-  invoke: async (params: any) => {
-    return await genkitHandler.explainCode(params.code);
-  }
-};
-export const summaryGenerationFlow = {
-  invoke: async (params: any) => {
-    return await genkitHandler.generateSummary(params.messages);
-  }
-};
-
+export const chatAssistantFlow = null;
+export const codeAssistantFlow = null;
+export const codeExplanationFlow = null;
+export const summaryGenerationFlow = null;

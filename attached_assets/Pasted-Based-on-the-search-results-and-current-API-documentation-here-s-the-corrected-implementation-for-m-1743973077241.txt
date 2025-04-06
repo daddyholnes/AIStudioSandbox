@@ -1,0 +1,110 @@
+Based on the search results and current API documentation, here's the corrected implementation for model handling in Genkit:
+
+1. Updated Model Configuration
+
+typescript
+// genkit.config.ts
+import { genkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
+
+export default genkit({
+  plugins: [
+    googleAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      projectId: process.env.GOOGLE_CLOUD_PROJECT
+    })
+  ],
+  defaultModel: 'gemini-2.0-flash', // Recommended workhorse model [7]
+  enableTracingAndMetrics: true
+});
+2. Model Availability Check
+
+typescript
+// server/services/models.ts
+import ai from '../genkit.config';
+
+export async function getAvailableModels() {
+  return ai.listModels({
+    filter: 'supportsGenerateContent',
+    pageSize: 100
+  });
+}
+
+// Example response structure
+interface ModelInfo {
+  name: string;
+  displayName: string;
+  inputTokenLimit: number;
+  outputTokenLimit: number;
+  supportedMethods: string[];
+}
+3. Correct Model Naming Pattern
+
+typescript
+// For production use
+const PRODUCTION_MODEL = 'gemini-2.0-flash'; // Stable version [4][7]
+
+// For experimental features
+const EXPERIMENTAL_MODEL = 'gemini-2.5-pro-exp-03-25'; // Latest experimental [7]
+4. Function Calling Implementation
+
+typescript
+// server/services/genkit.ts
+import { defineTool } from '@genkit-ai/core';
+
+const modelTools = defineTool({
+  name: 'model_selector',
+  description: 'Get available AI models',
+  inputSchema: z.object({
+    filter: z.string().optional()
+  }),
+  outputSchema: z.array(z.object({
+    name: z.string(),
+    capabilities: z.array(z.string())
+  }))
+});
+
+export const modelQueryFlow = ai.defineFlow({
+  name: 'modelQuery',
+  inputSchema: z.string(),
+  outputSchema: z.string()
+}, async (prompt) => {
+  const { text } = await ai.generate({
+    model: PRODUCTION_MODEL,
+    prompt,
+    tools: [modelTools],
+    toolConfig: {
+      functionCallingConfig: {
+        mode: 'AUTO',
+        allowedFunctionNames: ['model_selector']
+      }
+    }
+  });
+  return text;
+});
+Key Verification Points:
+
+Model availability confirmed through Google's official listings
+
+Function calling patterns aligned with Gemini API specs
+
+Production-ready model versioning per Google's recommendations
+
+Required Environment Variables:
+
+bash
+# .env file
+GEMINI_API_KEY=your_actual_key
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
+This implementation:
+
+Uses stable model versions for production
+
+Maintains compatibility with Vertex AI and Gemini API
+
+Implements proper function calling patterns
+
+Follows Google's recommended practices for model selection
+
+The timeout issue likely stemmed from using an incorrect model name or missing environment variables. This corrected configuration should resolve connection problems while providing proper model access.

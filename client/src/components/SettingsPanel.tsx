@@ -25,7 +25,7 @@ interface SettingsPanelProps {
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [apiKey, setApiKey] = useState('');
   const [activeTab, setActiveTab] = useState('general');
-  const [selectedModel, setSelectedModel] = useState('gemini-1.5-pro');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
   const [temperature, setTemperature] = useState(0.7);
   const [maxOutputTokens, setMaxOutputTokens] = useState(2048);
   const [topK, setTopK] = useState(40);
@@ -98,9 +98,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <SelectValue placeholder="Select model" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
-                    <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
-                    <SelectItem value="gemini-1.5-pro-vision">Gemini 1.5 Pro Vision</SelectItem>
+                    <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
+                    <SelectItem value="gemini-2.0-pro">Gemini 2.0 Pro</SelectItem>
+                    <SelectItem value="gemini-2.0-pro-vision">Gemini 2.0 Pro Vision</SelectItem>
+                    <SelectItem value="gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro (Experimental)</SelectItem>
                     <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
                     <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
                     <SelectItem value="gpt-4o">GPT-4o</SelectItem>
