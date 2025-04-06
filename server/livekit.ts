@@ -1,9 +1,9 @@
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 
 // LiveKit API key and secret from environment variables
-const livekitApiKey = process.env.LIVEKIT_API_KEY || 'APlaZrQMipD8nwY';
-const livekitApiSecret = process.env.LIVEKIT_API_SECRET || 'ulZBoLKvqZ389MhyMmg53';
-const livekitUrl = process.env.LIVEKIT_URL || 'wss://dartopia-gvufe64.live';
+const livekitApiKey = process.env.LIVEKIT_API_KEY;
+const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
+const livekitUrl = process.env.LIVEKIT_URL || 'wss://dartopia-gvu1e64v.livekit.cloud';
 
 // Initialize LiveKit room service client
 const roomService = new RoomServiceClient(
@@ -42,7 +42,7 @@ export const livekitHandler = {
    * @returns JWT token for room access
    */
   generateToken(roomName: string, participantName: string, isPublisher = true): string {
-    const token = new AccessToken(livekitApiKey, livekitApiSecret, {
+    const token = new AccessToken(livekitApiKey!, livekitApiSecret!, {
       identity: participantName
     });
     
@@ -67,9 +67,16 @@ export const livekitHandler = {
     try {
       // Check if room exists, create if it doesn't
       try {
-        await roomService.getRoom(roomName);
+        // Use listRooms to check if room exists - livekit-server-sdk doesn't have getRoom
+        const rooms = await roomService.listRooms();
+        const roomExists = rooms.some(room => room.name === roomName);
+        
+        if (!roomExists) {
+          // Room doesn't exist, create it
+          await this.createRoom(roomName);
+        }
       } catch (error) {
-        // Room doesn't exist, create it
+        // Room doesn't exist or error occurred, create it
         await this.createRoom(roomName);
       }
       
@@ -92,12 +99,15 @@ export const livekitHandler = {
    */
   async sendData(roomName: string, data: any, participantIdentity?: string): Promise<void> {
     try {
-      await roomService.sendData({
-        room: roomName,
-        data: Buffer.from(JSON.stringify(data)),
-        kind: 1, // RELIABLE delivery
-        destinationIdentities: participantIdentity ? [participantIdentity] : undefined
-      });
+      // Send data to room or specific participant
+      const dataToSend = Buffer.from(JSON.stringify(data));
+      const kind = 1; // RELIABLE delivery
+      
+      if (participantIdentity) {
+        await roomService.sendData(roomName, dataToSend, kind, [participantIdentity]);
+      } else {
+        await roomService.sendData(roomName, dataToSend, kind);
+      }
     } catch (error) {
       console.error('Error sending data:', error);
       throw error;
@@ -111,8 +121,9 @@ export const livekitHandler = {
    */
   async getRoomParticipants(roomName: string): Promise<any[]> {
     try {
-      const room = await roomService.getRoom(roomName);
-      return room.participants || [];
+      // Use listParticipants to get participants instead of getRoom
+      const participants = await roomService.listParticipants(roomName);
+      return participants || [];
     } catch (error) {
       console.error('Error getting room participants:', error);
       throw error;

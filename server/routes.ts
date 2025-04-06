@@ -7,9 +7,9 @@ import { livekitHandler } from "./livekit";
 import { aiHandler } from "./ai";
 
 // LiveKit API key and secret from environment variables
-const livekitApiKey = process.env.LIVEKIT_API_KEY || 'APlaZrQMipD8nwY';
-const livekitApiSecret = process.env.LIVEKIT_API_SECRET || 'ulZBoLKvqZ389MhyMmg53';
-const livekitUrl = process.env.LIVEKIT_URL || 'wss://dartopia-gvufe64.live';
+const livekitApiKey = process.env.LIVEKIT_API_KEY;
+const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
+const livekitUrl = process.env.LIVEKIT_URL || 'wss://dartopia-gvu1e64v.livekit.cloud';
 
 // Initialize LiveKit room service client
 const roomService = new RoomServiceClient(

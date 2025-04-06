@@ -1,4 +1,4 @@
-import { Room, RoomEvent, LocalTrack, TrackPublication, RemoteTrack, RemoteParticipant, LocalParticipant, Track } from 'livekit-client';
+import { Room, RoomEvent, LocalTrack, TrackPublication, RemoteTrack, RemoteParticipant, LocalParticipant, Track, createLocalTracks } from 'livekit-client';
 import { apiRequest } from './queryClient';
 
 // Room instance
@@ -11,7 +11,7 @@ export const initRoom = (): Room => {
     room = new Room({
       adaptiveStream: true,
       dynacast: true,
-      audioDeviceId: 'default'
+      // Don't use audioDeviceId here as it's not in the Room options
     });
     
     // Set up event listeners
@@ -37,7 +37,7 @@ export const connectToRoom = async (token: string): Promise<boolean> => {
     }
     
     // Connect to the room
-    await currentRoom.connect(process.env.LIVEKIT_URL || 'wss://your-project-url.livekit.cloud', token);
+    await currentRoom.connect('wss://dartopia-gvu1e64v.livekit.cloud', token);
     console.log('Connected to room:', currentRoom.name);
     
     return true;
@@ -68,7 +68,7 @@ export const toggleMicrophone = async (enabled: boolean): Promise<boolean> => {
     if (enabled) {
       // Enable microphone if not already enabled
       if (!microphoneTrack) {
-        microphoneTrack = await createLocalAudioTrack();
+        microphoneTrack = await createMicrophoneTrack();
         await participant.publishTrack(microphoneTrack);
       } else {
         // Unpublish and republish if already exists
@@ -89,14 +89,24 @@ export const toggleMicrophone = async (enabled: boolean): Promise<boolean> => {
 };
 
 // Create a local audio track
-export const createLocalAudioTrack = async (): Promise<LocalTrack> => {
+export const createMicrophoneTrack = async (): Promise<LocalTrack> => {
   try {
-    const audioTrack = await LocalTrack.createAudioTrack({
-      deviceId: 'default',
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true
+    const tracks = await createLocalTracks({
+      audio: {
+        deviceId: 'default',
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      },
+      video: false
     });
+    
+    // Return the audio track
+    const audioTrack = tracks.find(track => track.kind === Track.Kind.Audio);
+    
+    if (!audioTrack) {
+      throw new Error('No audio track created');
+    }
     
     return audioTrack;
   } catch (error) {
