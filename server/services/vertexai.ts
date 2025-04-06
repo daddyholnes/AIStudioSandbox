@@ -84,7 +84,7 @@ export const vertexAIHandler = {
       const endpoint = `projects/${PROJECT_ID}/locations/${LOCATION}/publishers/${PUBLISHER}/models/${CLAUDE_MODEL}`;
       
       // Make the prediction request
-      const [response] = await predictionClient.predict({
+      const response = await predictionClient.predict({
         endpoint,
         instances: [{ prompt }],
         parameters: {
@@ -94,6 +94,8 @@ export const vertexAIHandler = {
           topK: 40
         }
       });
+      
+      const predictionResponse = response[0];
 
       // Extract the response text
       const prediction = response.predictions?.[0];

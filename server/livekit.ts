@@ -99,10 +99,11 @@ export const livekitHandler = {
       });
       
       // Generate token for the participant
-      return this.generateToken(roomName, participantName);
+      const token = this.generateToken(roomName, participantName);
+      return token;
     } catch (error) {
       console.error('Error joining room:', error);
-      return `Error joining room: ${(error as Error).message}`;
+      throw new Error(`Error joining room: ${(error as Error).message}`);
     }
   },
   
