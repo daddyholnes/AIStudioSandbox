@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { livekitHandler } from "./livekit";
 import { aiHandler } from "./ai";
 import { webSocketRoomManager } from "./services/websocket";
-import { codeAssistantFlow, chatAssistantFlow, imageGenerationFlow } from './services/genkit';
+import { genkitHandler } from './services/genkit';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
@@ -424,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Process a chat message with Genkit
   app.post('/api/genkit/chat', async (req, res) => {
     try {
-      const { message, chatHistory, enableReasoning } = req.body;
+      const { message, chatHistory } = req.body;
       
       if (!message) {
         return res.status(400).json({ message: 'Message is required' });
@@ -436,12 +436,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: msg.content
       }));
       
-      // Process through Genkit flow
-      const response = await chatAssistantFlow({
-        userMessage: message,
-        chatHistory: history,
-        enableReasoning: !!enableReasoning
-      });
+      // Create a temp session with history
+      const tempSession = history.length > 0 ? {
+        userId: 'temp',
+        sessionId: 'temp-' + Date.now(),
+        history: history,
+        summaries: [],
+        lastActive: Date.now(),
+        modelConfig: { model: 'gemini-pro', temperature: 0.7 }
+      } : undefined;
+      
+      // Process the message using our direct handler
+      const response = await genkitHandler.processMessage(message, tempSession);
       
       return res.status(200).json({
         response,
@@ -459,18 +465,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate code with Genkit
   app.post('/api/genkit/code', async (req, res) => {
     try {
-      const { prompt, language, currentCode } = req.body;
+      const { prompt, language } = req.body;
       
       if (!prompt) {
         return res.status(400).json({ message: 'Prompt is required' });
       }
       
-      // Generate code using Genkit flow
-      const code = await codeAssistantFlow({
-        userPrompt: prompt,
-        language: language || 'typescript',
-        currentCode: currentCode || ''
-      });
+      // Generate code using Genkit handler
+      const code = await genkitHandler.generateCode(prompt, language || 'typescript');
       
       return res.status(200).json({
         code,
@@ -485,30 +487,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Generate images with Genkit
-  app.post('/api/genkit/image', async (req, res) => {
+  // Explain code with Genkit
+  app.post('/api/genkit/explain-code', async (req, res) => {
     try {
-      const { prompt, style, size } = req.body;
+      const { code } = req.body;
       
-      if (!prompt) {
-        return res.status(400).json({ message: 'Prompt is required' });
+      if (!code) {
+        return res.status(400).json({ message: 'Code is required' });
       }
       
-      // Generate image using Genkit flow
-      const imageResult = await imageGenerationFlow({
-        prompt,
-        style: style || 'vivid',
-        size: size || '1024x1024'
-      });
+      // Explain code using Genkit handler
+      const explanation = await genkitHandler.explainCode(code);
       
       return res.status(200).json({
-        imageUrl: imageResult.imageUrl,
+        explanation,
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error('Error generating image with Genkit:', error);
+      console.error('Error explaining code with Genkit:', error);
       return res.status(500).json({ 
-        message: 'Failed to generate image with Genkit',
+        message: 'Failed to explain code with Genkit',
         error: (error as Error).message
       });
     }

@@ -1,446 +1,249 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Settings, Database, KeyRound, Code, Palette, Bot, Cloud, Moon, Sun } from 'lucide-react';
+import React, { useState } from 'react';
+import { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription, 
+  CardContent, 
+  CardFooter 
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { X } from 'lucide-react';
 
 interface SettingsPanelProps {
-  aiModel: string;
-  setAiModel: (model: string) => void;
-  isDarkMode: boolean;
-  setIsDarkMode: (isDarkMode: boolean) => void;
+  onClose: () => void;
 }
 
-const SettingsPanel = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: SettingsPanelProps) => {
+export function SettingsPanel({ onClose }: SettingsPanelProps) {
+  const [apiKey, setApiKey] = useState('');
   const [activeTab, setActiveTab] = useState('general');
-
-  const googleModels = [
-    { label: 'Gemini 2.0 Flash', value: 'gemini-2.0-flash-exp' },
-    { label: 'Gemini 2.0 Pro', value: 'gemini-2.0-pro-exp' },
-    { label: 'Gemini 2.5 Flash', value: 'gemini-2.5-flash-001' },
-    { label: 'Gemini 2.5 Pro', value: 'gemini-2.5-pro-001' },
-    { label: 'Codey', value: 'codechat-bison' },
-    { label: 'PaLM 2', value: 'chat-bison' }
-  ];
-
-  const partnerModels = [
-    { label: 'Claude 3 Opus', value: 'claude-3-opus' },
-    { label: 'Claude 3 Sonnet', value: 'claude-3-sonnet' },
-    { label: 'Claude 3 Haiku', value: 'claude-3-haiku' },
-    { label: 'Mistral Large', value: 'mistral-large' },
-    { label: 'Llama 3', value: 'llama-3-coder' }
-  ];
-
-  const imageModels = [
-    { label: 'Imagen 3', value: 'imagen-3' },
-    { label: 'Stable Diffusion XL', value: 'stable-diffusion-xl' }
-  ];
-
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-pro');
+  const [temperature, setTemperature] = useState(0.7);
+  const [maxOutputTokens, setMaxOutputTokens] = useState(2048);
+  const [topK, setTopK] = useState(40);
+  const [topP, setTopP] = useState(0.95);
+  const [webSearch, setWebSearch] = useState(false);
+  const [thinkingEnabled, setThinkingEnabled] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
+  
+  const handleSave = () => {
+    // Save settings to local storage
+    const settings = {
+      model: selectedModel,
+      temperature,
+      maxOutputTokens,
+      topK,
+      topP,
+      webSearch,
+      thinkingEnabled,
+      darkMode,
+      apiKey: apiKey || undefined // Only save if provided
+    };
+    
+    localStorage.setItem('aiStudioSettings', JSON.stringify(settings));
+    
+    // Notify that settings are saved
+    console.log('Settings saved:', settings);
+    
+    // Close the settings panel
+    onClose();
+  };
+  
   return (
-    <div className="h-full flex flex-col overflow-auto p-4 bg-background">
-      <div className="flex items-center mb-6">
-        <Settings className="h-5 w-5 mr-2" />
-        <h2 className="text-lg font-medium">Settings</h2>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-        <TabsList className="grid grid-cols-5 mb-6">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="models">AI Models</TabsTrigger>
-          <TabsTrigger value="api">API Keys</TabsTrigger>
-          <TabsTrigger value="editor">Editor</TabsTrigger>
-          <TabsTrigger value="genkit">Genkit</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="general" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Appearance</CardTitle>
-              <CardDescription>Customize the look and feel of the application</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+    <Card className="w-full max-w-2xl h-[90vh] overflow-y-auto">
+      <CardHeader className="flex flex-row justify-between items-center">
+        <div>
+          <CardTitle>Settings</CardTitle>
+          <CardDescription>Configure your AI Studio environment</CardDescription>
+        </div>
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X />
+        </Button>
+      </CardHeader>
+      
+      <CardContent>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="model">Model Configuration</TabsTrigger>
+            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="api">API Keys</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="general">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Dark Mode</Label>
-                  <div className="text-xs text-muted-foreground">Enable dark theme for the app</div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Sun className="h-4 w-4 text-muted-foreground" />
-                  <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} />
-                  <Moon className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Font Size</Label>
-                  <div className="text-xs text-muted-foreground">Set the default font size</div>
-                </div>
-                <Select defaultValue="14">
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue placeholder="Font size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="12">12px</SelectItem>
-                    <SelectItem value="14">14px</SelectItem>
-                    <SelectItem value="16">16px</SelectItem>
-                    <SelectItem value="18">18px</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Collaboration</CardTitle>
-              <CardDescription>Real-time collaboration settings</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Enable Collaboration</Label>
-                  <div className="text-xs text-muted-foreground">Allow others to join your sessions</div>
-                </div>
-                <Switch defaultChecked={true} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Auto-share with AI Assistant</Label>
-                  <div className="text-xs text-muted-foreground">Share your workspace with AI</div>
-                </div>
-                <Switch defaultChecked={true} />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="models" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Google AI Models</CardTitle>
-              <CardDescription>Configure Google's AI models</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Default Chat Model</Label>
-                <Select value={aiModel} onValueChange={setAiModel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {googleModels.map(model => (
-                      <SelectItem key={model.value} value={model.value}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Default Code Model</Label>
-                <Select defaultValue="codechat-bison">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="codechat-bison">Codey</SelectItem>
-                    <SelectItem value="gemini-2.0-pro-exp">Gemini 2.0 Pro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-2">
-                <Label>Partner Models</Label>
-                <Select defaultValue="claude-3-opus">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {partnerModels.map(model => (
-                      <SelectItem key={model.value} value={model.value}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Image Models</Label>
-                <Select defaultValue="imagen-3">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {imageModels.map(model => (
-                      <SelectItem key={model.value} value={model.value}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-            
-          <Card>
-            <CardHeader>
-              <CardTitle>Model Parameters</CardTitle>
-              <CardDescription>Configure AI model behavior</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Temperature: 0.7</Label>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="1" 
-                  step="0.1" 
-                  defaultValue="0.7" 
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Deterministic</span>
-                  <span>Creative</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Max Output Tokens: 1024</Label>
-                <input 
-                  type="range" 
-                  min="256" 
-                  max="8192" 
-                  step="256" 
-                  defaultValue="1024" 
-                  className="w-full"
+                <Label htmlFor="darkMode">Dark Mode</Label>
+                <Switch 
+                  id="darkMode" 
+                  checked={darkMode} 
+                  onCheckedChange={setDarkMode}
                 />
               </div>
               
-              <div className="flex flex-col space-y-2">
-                <Label className="mb-2">Advanced Options</Label>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="web-access" />
-                  <label htmlFor="web-access" className="text-sm">Enable Web Access</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="deep-search" />
-                  <label htmlFor="deep-search" className="text-sm">Enable Deep Search</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="thinking" />
-                  <label htmlFor="thinking" className="text-sm">Enable Thinking Mode</label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="api" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>API Keys</CardTitle>
-              <CardDescription>Configure your AI service API keys</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>OpenAI API Key</Label>
-                <div className="flex space-x-2">
-                  <Input type="password" value="••••••••••••••••••••••••••" />
-                  <Button variant="outline" size="sm">Edit</Button>
-                </div>
-              </div>
+              <Separator />
               
-              <div className="space-y-2">
-                <Label>Google AI API Key</Label>
-                <div className="flex space-x-2">
-                  <Input type="password" value="••••••••••••••••••••••••••" />
-                  <Button variant="outline" size="sm">Edit</Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Anthropic API Key</Label>
-                <div className="flex space-x-2">
-                  <Input type="password" value="••••••••••••••••••••••••••" />
-                  <Button variant="outline" size="sm">Edit</Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>LiveKit API Key</Label>
-                <div className="flex space-x-2">
-                  <Input type="password" value="••••••••••••••••••••••••••" />
-                  <Button variant="outline" size="sm">Edit</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="editor" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Editor Settings</CardTitle>
-              <CardDescription>Customize your code editor experience</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Tab Size</Label>
-                <Select defaultValue="2">
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select size" />
+              <div>
+                <Label htmlFor="defaultModel">Default Model</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select model" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2">2 spaces</SelectItem>
-                    <SelectItem value="4">4 spaces</SelectItem>
-                    <SelectItem value="tab">Tab</SelectItem>
+                    <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+                    <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                    <SelectItem value="gemini-1.5-pro-vision">Gemini 1.5 Pro Vision</SelectItem>
+                    <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                    <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+                    <SelectItem value="gpt-4o">GPT-4o</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="model">
+            <div className="space-y-6">
               <div className="space-y-2">
-                <Label>Font Family</Label>
-                <Select defaultValue="monospace">
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select font" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monospace">Monospace</SelectItem>
-                    <SelectItem value="firacode">Fira Code</SelectItem>
-                    <SelectItem value="jetbrains">JetBrains Mono</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex flex-col space-y-2">
-                <Label className="mb-2">Editor Options</Label>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="word-wrap" defaultChecked />
-                  <label htmlFor="word-wrap" className="text-sm">Word Wrap</label>
+                <div className="flex justify-between">
+                  <Label htmlFor="temperature">Temperature: {temperature.toFixed(2)}</Label>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="line-numbers" defaultChecked />
-                  <label htmlFor="line-numbers" className="text-sm">Line Numbers</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="auto-save" defaultChecked />
-                  <label htmlFor="auto-save" className="text-sm">Auto Save</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="auto-format" defaultChecked />
-                  <label htmlFor="auto-format" className="text-sm">Auto Format</label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="genkit" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Genkit Settings</CardTitle>
-              <CardDescription>Configure Firebase Genkit integration</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Google Project ID</Label>
-                <Input placeholder="Auto-detected from credentials" />
+                <Slider 
+                  id="temperature"
+                  min={0} 
+                  max={1} 
+                  step={0.01} 
+                  value={[temperature]} 
+                  onValueChange={(values) => setTemperature(values[0])}
+                />
+                <p className="text-xs text-gray-500">
+                  Controls randomness: Lower values are more focused and deterministic, higher values more creative.
+                </p>
               </div>
               
               <div className="space-y-2">
-                <Label>API Version</Label>
-                <Select defaultValue="v2beta">
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select API version" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="v1beta">v1beta</SelectItem>
-                    <SelectItem value="v2beta">v2beta</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex justify-between">
+                  <Label htmlFor="maxOutputTokens">Max Output Tokens: {maxOutputTokens}</Label>
+                </div>
+                <Slider 
+                  id="maxOutputTokens"
+                  min={1} 
+                  max={4096} 
+                  step={1} 
+                  value={[maxOutputTokens]} 
+                  onValueChange={(values) => setMaxOutputTokens(values[0])}
+                />
+                <p className="text-xs text-gray-500">
+                  Maximum length of the model's response in tokens. Higher values allow for longer outputs.
+                </p>
               </div>
               
               <div className="space-y-2">
-                <Label>Location</Label>
-                <Select defaultValue="us-central1">
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="us-central1">us-central1</SelectItem>
-                    <SelectItem value="europe-west1">europe-west1</SelectItem>
-                    <SelectItem value="asia-northeast1">asia-northeast1</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex justify-between">
+                  <Label htmlFor="topK">Top-K: {topK}</Label>
+                </div>
+                <Slider 
+                  id="topK"
+                  min={1} 
+                  max={100} 
+                  step={1} 
+                  value={[topK]} 
+                  onValueChange={(values) => setTopK(values[0])}
+                />
+                <p className="text-xs text-gray-500">
+                  Limits token selection to top K possibilities. Lower values create more focused responses.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <Label htmlFor="topP">Top-P: {topP.toFixed(2)}</Label>
+                </div>
+                <Slider 
+                  id="topP"
+                  min={0} 
+                  max={1} 
+                  step={0.01} 
+                  value={[topP]} 
+                  onValueChange={(values) => setTopP(values[0])}
+                />
+                <p className="text-xs text-gray-500">
+                  Nucleus sampling: Only considers tokens with combined probability mass of P. Lower values create more focused responses.
+                </p>
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="advanced">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="webSearch">Web Search (DeepSearch)</Label>
+                  <p className="text-sm text-gray-500">Allow AI to search the web for information</p>
+                </div>
+                <Switch 
+                  id="webSearch" 
+                  checked={webSearch} 
+                  onCheckedChange={setWebSearch}
+                />
               </div>
               
               <Separator />
               
-              <div className="flex flex-col space-y-2">
-                <Label className="mb-2">Genkit Features</Label>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="tracing" defaultChecked />
-                  <label htmlFor="tracing" className="text-sm">Enable Tracing and Metrics</label>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="thinking">Thinking Access</Label>
+                  <p className="text-sm text-gray-500">Enable step-by-step reasoning for complex questions</p>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="caching" defaultChecked />
-                  <label htmlFor="caching" className="text-sm">Enable Response Caching</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="multi-modal" defaultChecked />
-                  <label htmlFor="multi-modal" className="text-sm">Enable Multi-modal Support</label>
-                </div>
+                <Switch 
+                  id="thinking" 
+                  checked={thinkingEnabled} 
+                  onCheckedChange={setThinkingEnabled}
+                />
               </div>
-              
-              <Separator />
-              
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="api">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Connected Models</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="google-ai" defaultChecked />
-                    <label htmlFor="google-ai" className="text-sm">Google AI</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="openai" defaultChecked />
-                    <label htmlFor="openai" className="text-sm">OpenAI</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="anthropic" defaultChecked />
-                    <label htmlFor="anthropic" className="text-sm">Anthropic</label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="vertex" defaultChecked />
-                    <label htmlFor="vertex" className="text-sm">Vertex AI</label>
-                  </div>
-                </div>
+                <Label htmlFor="apiKey">Google AI API Key</Label>
+                <Input 
+                  id="apiKey"
+                  type="password" 
+                  value={apiKey} 
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Enter your API key"
+                />
+                <p className="text-xs text-gray-500">
+                  Your API key is stored locally and never sent to our servers.
+                </p>
               </div>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full">Save Genkit Settings</Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+              
+              <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  Note: You can use the environment-provided API keys if you don't have your own.
+                </p>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+      
+      <CardFooter className="flex justify-between">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSave}>Save Changes</Button>
+      </CardFooter>
+    </Card>
   );
-};
+}
 
 export default SettingsPanel;

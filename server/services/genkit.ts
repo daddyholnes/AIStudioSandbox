@@ -1,19 +1,21 @@
 import { AISession } from '../../shared/schema';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import apiKey from '../../genkit.config';
 
 // Initialize Google Generative AI client directly
 const googleAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 
+// Export the client for other services
+export const genkitAI = googleAI;
+
 // Models
-const GEMINI_PRO = 'gemini-pro';
-const GEMINI_PRO_VISION = 'gemini-pro-vision';
-const GEMINI_FLASH = 'gemini-flash';
+const GEMINI_PRO = 'gemini-1.5-pro';
+const GEMINI_PRO_VISION = 'gemini-1.5-pro-vision';
+const GEMINI_FLASH = 'gemini-1.5-flash';
 
 /**
  * Helper to clean and format messages for chat history
  */
-function formatChatHistory(messages) {
+function formatChatHistory(messages: Array<{ role: string, content: string }>) {
   return messages.map(msg => ({
     role: msg.role === 'user' ? 'user' : 'model',
     parts: [{ text: msg.content }]
@@ -21,7 +23,7 @@ function formatChatHistory(messages) {
 }
 
 /**
- * Direct Google AI integration without flows
+ * Direct Google AI integration 
  */
 export const genkitHandler = {
   /**
@@ -31,7 +33,7 @@ export const genkitHandler = {
     try {
       const model = googleAI.getGenerativeModel({ model: GEMINI_PRO });
       
-      let chatHistory = [];
+      let chatHistory: any[] = [];
       if (session?.history && session.history.length > 0) {
         chatHistory = formatChatHistory(session.history);
       }
