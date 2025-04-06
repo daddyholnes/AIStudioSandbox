@@ -6,7 +6,19 @@ import { cn } from "@/lib/utils"
 
 const Select = SelectPrimitive.Root
 
-const SelectGroup = SelectPrimitive.Group
+const SelectGroup = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Group>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Group>
+>(({ className, children, ...props }, ref) => (
+  <SelectPrimitive.Group
+    ref={ref}
+    className={cn("py-1", className)}
+    {...props}
+  >
+    {children}
+  </SelectPrimitive.Group>
+))
+SelectGroup.displayName = SelectPrimitive.Group.displayName
 
 const SelectValue = SelectPrimitive.Value
 
@@ -105,7 +117,10 @@ const SelectLabel = React.forwardRef<
     ref={ref}
     className={cn("px-2 py-1.5 text-sm font-semibold", className)}
     {...props}
-  />
+    asChild
+  >
+    <span>{props.children}</span>
+  </SelectPrimitive.Label>
 ))
 SelectLabel.displayName = SelectPrimitive.Label.displayName
 
@@ -120,13 +135,16 @@ const SelectItem = React.forwardRef<
       className
     )}
     {...props}
+    asChild
   >
-    <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
-      <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" />
-      </SelectPrimitive.ItemIndicator>
+    <span className="flex w-full items-center">
+      <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+        <SelectPrimitive.ItemIndicator>
+          <Check className="h-4 w-4" />
+        </SelectPrimitive.ItemIndicator>
+      </span>
+      <span className="truncate">{children}</span>
     </span>
-    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
 ))
 SelectItem.displayName = SelectPrimitive.Item.displayName

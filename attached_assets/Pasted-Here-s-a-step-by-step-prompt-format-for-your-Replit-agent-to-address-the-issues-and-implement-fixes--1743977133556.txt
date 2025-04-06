@@ -1,0 +1,207 @@
+Here’s a step-by-step prompt format for your Replit agent to address the issues and implement fixes in your AIStudioSandbox project. These prompts are organized based on the priority of the issues and features.
+
+1. Fix DOM Nesting Error in Select Component
+Prompt for Replit Agent:
+
+typescript
+// Locate and fix improper nesting in Select components
+// Replace incorrect nesting with proper structure
+<SelectGroup>
+  <SelectLabel>Category</SelectLabel>
+  <SelectItem value="option1">Option 1</SelectItem>
+</SelectGroup>
+// Move <div> outside of SelectGroup if present
+2. Fix WebSocket Collaboration Connection Issues
+Prompt for Replit Agent:
+
+typescript
+// Update WebSocket server initialization (server/websocket.ts)
+import { WebSocketServer } from 'ws';
+
+const wss = new WebSocketServer({
+  server: httpServer,
+  path: '/ws',
+  perMessageDeflate: false, // Disable compression to avoid errors
+  clientTracking: true // Enable client tracking
+});
+
+wss.on('error', (error) => {
+  console.error('WebSocket server error:', error);
+});
+3. Implement AI Feature Buttons Functionality
+Prompt for Replit Agent:
+
+typescript
+// Add functionality for Web Access button (client/src/components/CodeStudio.tsx)
+const handleWebAccessToggle = () => {
+  const newValue = !webAccessEnabled;
+  setWebAccessEnabled(newValue);
+  
+  fetch('/api/ai/features/web-access', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: newValue })
+  });
+};
+
+// Repeat similar logic for Thinking, Prompts, Genkit, and Commands buttons
+4. Fix Layout Normalization Warnings
+Prompt for Replit Agent:
+
+typescript
+// Ensure ResizablePanelGroup panels add up to 100% (client/src/components/Layout.tsx)
+<ResizablePanelGroup direction="horizontal">
+  <ResizablePanel defaultSize={80}>
+    {/* Content */}
+  </ResizablePanel>
+  <ResizableHandle />
+  <ResizablePanel defaultSize={20}>
+    {/* Content */}
+  </ResizablePanel>
+</ResizablePanelGroup>
+5. Fix "Cannot read properties of undefined (reading 'dimensions')" Error
+Prompt for Replit Agent:
+
+typescript
+// Add null-safe check for dimensions (client/src/components/EditorPanel.tsx)
+const dimensions = element?.dimensions || { width: 0, height: 0 };
+6. Create Missing Settings Component
+Prompt for Replit Agent:
+
+typescript
+// Create SettingsPanel component (client/src/components/SettingsPanel.tsx)
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
+
+interface SettingsPanelProps {
+  onClose: () => void;
+}
+
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b flex items-center justify-between">
+        <h2 className="font-medium">Settings</h2>
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="p-4 flex-1 overflow-y-auto">
+        {/* Settings content goes here */}
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-sm font-medium mb-2">Appearance</h3>
+            {/* Theme settings */}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium mb-2">Editor</h3>
+            {/* Editor settings */}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium mb-2">AI</h3>
+            {/* AI settings */}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SettingsPanel;
+7. Fix TypeScript 'any' Type Warnings
+Prompt for Replit Agent:
+
+typescript
+// Update error handling to use unknown type (client/src/components/EditorPanel.tsx)
+catch (error: unknown) {
+  console.error('Error:', error instanceof Error ? error.message : 'Unknown error');
+}
+8. Fix VertexAI Type Issues
+Prompt for Replit Agent:
+
+typescript
+// Update VertexAI request structure (server/services/vertexai.ts)
+instances: [{
+  content: prompt,
+  parameters: {
+    temperature: 0.7
+  }
+}] as unknown as IValue;
+9. Implement Model Personas Configuration
+Prompt for Replit Agent:
+
+typescript
+// Add dropdown for model personas (client/src/components/ModelSelector.tsx)
+<SelectGroup>
+  <SelectLabel>Choose Persona</SelectLabel>
+  <SelectItem value="developer">Developer Assistant</SelectItem>
+  <SelectItem value="designer">Designer Assistant</SelectItem>
+</SelectGroup>
+
+// Use selected persona in API requests:
+fetch('/api/ai/model', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ persona })
+});
+10. Complete Movable Chat Box Implementation
+Prompt for Replit Agent:
+
+typescript
+// Add draggable functionality to chat box (client/src/components/ChatBox.tsx)
+import Draggable from 'react-draggable';
+
+<Draggable bounds="parent">
+  <div className="chat-box">
+    {/* Chat content */}
+    <button onClick={() => setMaximized(!maximized)}>
+      {maximized ? 'Minimize' : 'Maximize'}
+    </button>
+  </div>
+</Draggable>;
+11. Advanced Features Implementation
+Image Generation:
+Prompt for Replit Agent:
+
+bash
+# Install Imagen model plugin
+npm install @genkit-ai/googleai @genkit-ai/imagemodels
+typescript
+const imageGenerationFlow = ai.defineFlow({
+  name: 'imageGeneration',
+  inputSchema: z.string(),
+  outputSchema: z.string(),
+}, async ({ prompt }) => {
+  const result = await ai.generate({
+    model: 'imagen3',
+    prompt,
+    outputFormat: 'media'
+  });
+  
+  return result.mediaUrl;
+});
+Code Execution:
+Prompt for Replit Agent:
+
+bash
+# Install Docker-based execution environment dependencies
+sudo apt-get install docker.io && sudo usermod -aG docker ${USER}
+typescript
+export async function executeCode(code, lang) {
+   const container = await docker.createContainer({
+     Image: `sandbox-${lang}`,
+     Cmd: ['sh', '-c', `echo "${code}" > app.js && node app.js`],
+     HostConfig: { AutoRemove: true }
+   });
+   const result = await container.start();
+   return result.output;
+}
+Next Steps
+Start with critical fixes like WebSocket collaboration and DOM nesting errors.
+
+Gradually implement missing features like AI buttons, chat box improvements, and advanced Genkit flows.
+
+Test each feature thoroughly after implementation.
+
+Let me know if you need more detailed prompts or assistance with specific features!

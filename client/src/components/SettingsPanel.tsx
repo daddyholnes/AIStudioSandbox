@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { X } from 'lucide-react';
@@ -92,20 +92,22 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <SelectValue placeholder="Select model" />
                   </SelectTrigger>
                   <SelectContent>
-                    <optgroup label="Google Models">
+                    <SelectGroup>
+                      <SelectLabel>Google Models</SelectLabel>
                       {googleModels.map(model => (
                         <SelectItem key={model.id} value={model.id}>
                           {model.name}
                         </SelectItem>
                       ))}
-                    </optgroup>
-                    <optgroup label="Partner Models">
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>Partner Models</SelectLabel>
                       {partnerModels.map(model => (
                         <SelectItem key={model.id} value={model.id}>
                           {model.name}
                         </SelectItem>
                       ))}
-                    </optgroup>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>

@@ -119,7 +119,9 @@ export class WebSocketRoomManager {
     // Create WebSocket server with a unique path
     this.wss = new WebSocketServer({ 
       server,
-      path: '/ws/collab'
+      path: '/ws',
+      perMessageDeflate: false, // Disable compression which may cause issues
+      clientTracking: true      // Enable client tracking for better connection management
     });
     
     log('WebSocket collaboration server initialized', 'websocket');

@@ -14,7 +14,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebSocket server for LiveKit events
   const wss = new WebSocketServer({ 
     server: httpServer,
-    path: '/ws/livekit' // Use a specific path to avoid conflicts with other WebSockets
+    path: '/ws/livekit', // Use a specific path to avoid conflicts with other WebSockets
+    perMessageDeflate: false, // Disable compression which may cause issues
+    clientTracking: true      // Enable client tracking for better connection management
   });
   
   // Initialize WebSocket collaboration service with the same HTTP server
