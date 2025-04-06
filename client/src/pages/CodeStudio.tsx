@@ -6,7 +6,7 @@ import EditorPanel from '../components/EditorPanel';
 import AIPanel from '../components/AIPanel';
 import StatusBar from '../components/StatusBar';
 import OutputPanel from '../components/OutputPanel';
-import SettingsPanel from '../components/SettingsPanel';
+import { SettingsPanel } from '../components/SettingsPanel';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 // Define ProjectFileInfo type for the client-side components
@@ -261,12 +261,7 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
             <>
               <ResizableHandle />
               <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-                <SettingsPanel 
-                  aiModel={aiModel}
-                  setAiModel={setAiModel}
-                  isDarkMode={isDarkMode}
-                  setIsDarkMode={setIsDarkMode}
-                />
+                <SettingsPanel onClose={() => handleToggleSettingsPanel()} />
               </ResizablePanel>
             </>
           )}

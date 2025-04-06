@@ -38,26 +38,26 @@ const Sidebar = ({
   // Sidebar navigation items
   const navItems = [
     { id: 'project', icon: Files, label: 'Files', onClick: onToggleProjectPanel, active: activePanel === 'project' },
-    { id: 'editor', icon: Code, label: 'Editor', onClick: () => {}, active: false },
-    { id: 'terminal', icon: Terminal, label: 'Terminal', onClick: () => {}, active: false },
-    { id: 'run', icon: Play, label: 'Run', onClick: () => {}, active: false },
-    { id: 'extensions', icon: Package, label: 'Extensions', onClick: () => {}, active: false },
+    { id: 'editor', icon: Code, label: 'Editor', onClick: () => console.log('Editor selected'), active: activePanel === 'editor' },
+    { id: 'terminal', icon: Terminal, label: 'Terminal', onClick: () => console.log('Terminal selected'), active: activePanel === 'terminal' },
+    { id: 'run', icon: Play, label: 'Run', onClick: () => console.log('Run selected'), active: activePanel === 'run' },
+    { id: 'extensions', icon: Package, label: 'Extensions', onClick: () => console.log('Extensions selected'), active: activePanel === 'extensions' },
   ];
 
   // AI features
   const aiItems = [
     { id: 'ai', icon: MessageSquareText, label: 'Chat', onClick: onToggleAIPanel, active: activePanel === 'ai' },
-    { id: 'prompt', icon: ListPlus, label: 'Prompts', onClick: () => {}, active: false },
-    { id: 'history', icon: History, label: 'History', onClick: () => {}, active: false },
-    { id: 'web', icon: Globe, label: 'Web Access', onClick: () => {}, active: false },
-    { id: 'thinking', icon: BrainCircuit, label: 'Thinking', onClick: () => {}, active: false },
-    { id: 'genkit', icon: Sparkles, label: 'Genkit', onClick: () => {}, active: false },
-    { id: 'command', icon: CommandIcon, label: 'Commands', onClick: () => {}, active: false },
+    { id: 'prompt', icon: ListPlus, label: 'Prompts', onClick: () => console.log('Prompts selected'), active: activePanel === 'prompt' },
+    { id: 'history', icon: History, label: 'History', onClick: () => console.log('History selected'), active: activePanel === 'history' },
+    { id: 'web', icon: Globe, label: 'Web Access', onClick: () => console.log('Web Access selected'), active: activePanel === 'web' },
+    { id: 'thinking', icon: BrainCircuit, label: 'Thinking', onClick: () => console.log('Thinking selected'), active: activePanel === 'thinking' },
+    { id: 'genkit', icon: Sparkles, label: 'Genkit', onClick: () => console.log('Genkit selected'), active: activePanel === 'genkit' },
+    { id: 'command', icon: CommandIcon, label: 'Commands', onClick: () => console.log('Commands selected'), active: activePanel === 'command' },
   ];
 
   // System items at the bottom
   const systemItems = [
-    { id: 'voice', icon: Mic, label: 'Voice', onClick: () => {}, active: false },
+    { id: 'voice', icon: Mic, label: 'Voice', onClick: () => console.log('Voice selected'), active: activePanel === 'voice' },
     { id: 'settings', icon: Settings, label: 'Settings', onClick: onToggleSettingsPanel, active: activePanel === 'settings' },
   ];
 
