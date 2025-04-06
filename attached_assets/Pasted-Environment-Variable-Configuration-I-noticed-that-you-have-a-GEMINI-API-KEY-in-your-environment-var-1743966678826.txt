@@ -1,0 +1,72 @@
+Environment Variable Configuration
+I noticed that you have a GEMINI_API_KEY in your environment variables, but your code is looking for GOOGLE_AI_API_KEY or GOOGLE_API_KEY. This naming mismatch is likely the primary cause of your issues.
+
+Fix Options:
+Rename in code (recommended):
+
+javascript
+// Find all instances where your code looks for GOOGLE_AI_API_KEY or GOOGLE_API_KEY
+// Change them to match your actual environment variable:
+const apiKey = process.env.GEMINI_API_KEY;
+Or add an environment variable alias:
+
+javascript
+// In your server initialization (likely index.js or server.js)
+process.env.GOOGLE_AI_API_KEY = process.env.GEMINI_API_KEY;
+Message Format Correction
+The Google AI/Gemini API expects a specific format for messages. Based on the Gemini API documentation:
+
+Fix for Chat Format:
+javascript
+// INCORRECT:
+const messages = [
+  { role: "user", content: "Hello" }
+];
+
+// CORRECT:
+const messages = [
+  { role: "user", content: [{ type: "text", text: "Hello" }] }
+];
+
+// For the Google generativeAI library specifically:
+const messages = [
+  { role: "user", parts: [{ text: "Hello" }] }
+];
+Look for your message formatting code and ensure it follows the correct pattern. In your AI service implementation, you might need to transform messages:
+
+javascript
+// Look for code like this:
+messages.map(msg => ({
+  role: msg.role,
+  parts: msg.content // INCORRECT
+}))
+
+// Change to:
+messages.map(msg => ({
+  role: msg.role === "assistant" ? "model" : msg.role, // Gemini uses "model" instead of "assistant"
+  parts: Array.isArray(msg.content) 
+    ? msg.content.map(part => ({ text: part.text })) 
+    : [{ text: msg.content }]
+}))
+Error Message Updates
+Search for error messages in your code that reference the incorrect variable name:
+
+javascript
+// Find code like:
+if (!process.env.GOOGLE_AI_API_KEY) {
+  console.error("Please set the GOOGLE_AI_API_KEY environment variable");
+}
+
+// Change to:
+if (!process.env.GEMINI_API_KEY) {
+  console.error("Please set the GEMINI_API_KEY environment variable");
+}
+Additional Check: API Initialization
+Make sure your API client is being initialized with the correct key:
+
+javascript
+// Look for code like:
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+
+// Change to:
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);

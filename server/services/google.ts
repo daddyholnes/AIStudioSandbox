@@ -5,7 +5,7 @@ import { AISession } from '../../shared/schema';
 const DEFAULT_MODEL = 'gemini-pro';
 
 // Initialize Gemini API with the API key
-const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY;
+const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
 
 // Initialize the Google Generative AI instance if API key is available
 let genAI: GoogleGenerativeAI | null = null;

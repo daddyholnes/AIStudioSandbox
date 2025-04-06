@@ -14,7 +14,7 @@ export enum AIProvider {
 
 // Provider availability check
 const isProviderAvailable = {
-  [AIProvider.GOOGLE]: Boolean(process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY),
+  [AIProvider.GOOGLE]: Boolean(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY),
   [AIProvider.OPENAI]: Boolean(process.env.OPENAI_API_KEY),
   [AIProvider.ANTHROPIC]: Boolean(process.env.ANTHROPIC_API_KEY),
   [AIProvider.VERTEX]: vertexAIHandler.isAvailable()

@@ -56,40 +56,45 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
 
   const createOrJoinRoom = async () => {
     try {
-      // Create room
-      const createResponse = await fetch('/api/livekit/room', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ roomName }),
+      // Create or join a collaboration room using our WebSocket collaboration service
+      const participantName = 'User-' + Math.floor(Math.random() * 10000);
+      
+      // Import the WebSocket collab client
+      const { webSocketCollab } = await import('../lib/websocketCollab');
+      
+      // Set up event handlers
+      webSocketCollab.on('connect', () => {
+        console.log('WebSocket collaboration connected');
       });
       
-      const createData = await createResponse.json();
+      webSocketCollab.on('error', (error) => {
+        console.error('WebSocket collaboration error:', error);
+      });
       
-      if (createData.success) {
-        // Get token
-        const tokenResponse = await fetch('/api/livekit/token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            roomName, 
-            participantName: 'User-' + Math.floor(Math.random() * 10000) 
-          }),
-        });
+      webSocketCollab.on('room-joined', (data) => {
+        console.log('Joined room:', data);
+        setRoomConnected(true);
+      });
+      
+      // Connect to the WebSocket server
+      await webSocketCollab.connect();
+      
+      // Join or create the room
+      try {
+        await webSocketCollab.joinRoom(roomName, participantName, true);
+      } catch (joinError) {
+        console.error('Error joining room:', joinError);
         
-        const tokenData = await tokenResponse.json();
-        
-        if (tokenData.token) {
-          // In a real app, we would connect to the room using LiveKit client
-          console.log('Got token:', tokenData.token);
-          setRoomConnected(true);
+        // Try to create the room first
+        try {
+          await webSocketCollab.createRoom(roomName);
+          await webSocketCollab.joinRoom(roomName, participantName);
+        } catch (createError) {
+          console.error('Error creating room:', createError);
         }
       }
     } catch (error) {
-      console.error('Error creating/joining room:', error);
+      console.error('Error with WebSocket collaboration:', error);
     }
   };
 
