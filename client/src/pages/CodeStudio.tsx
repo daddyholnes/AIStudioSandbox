@@ -8,6 +8,7 @@ import StatusBar from '../components/StatusBar';
 import OutputPanel from '../components/OutputPanel';
 import { SettingsPanel } from '../components/SettingsPanel';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import websocketCollab from '../lib/websocketCollab';
 
 // Define ProjectFileInfo type for the client-side components
 export interface ProjectFileInfo {
@@ -205,35 +206,52 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   };
   
   // Updated generic toggle handler that works with any feature
-  const handleFeatureToggle = (featureName: 'webAccess' | 'thinking' | 'prompts' | 'genkit' | 'commands') => {
-    const newValue = !features[featureName];
+  const handleFeatureToggle = async (feature: keyof FeatureState) => {
+    const newValue = !features[feature];
+    setFeatures(prev => ({ ...prev, [feature]: newValue }));
     
-    // Update state with the new value
-    setFeatures(prev => ({
-      ...prev,
-      [featureName]: newValue
-    }));
+    // Send to server
+    websocketCollab.sendFeatureUpdate(feature, newValue);
     
-    // Call the API to toggle the feature
-    fetch('/api/ai/features', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [featureName]: newValue })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log(`${featureName} ${newValue ? 'enabled' : 'disabled'}`);
-    })
-    .catch(error => {
-      console.error(`Error toggling ${featureName}:`, error);
-      // Revert UI state if API call fails
-      setFeatures(prev => ({
-        ...prev,
-        [featureName]: !newValue
-      }));
-    });
+    // Also update via REST API for persistence
+    try {
+      await fetch(`/api/ai/features?sessionId=${sessionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ [feature]: newValue })
+      });
+    } catch (error) {
+      console.error('Error updating feature toggle:', error);
+      
+      // Verify state in case of error
+      try {
+        const response = await fetch(`/api/ai/features?sessionId=${sessionId}`);
+        const serverState = await response.json();
+        if (serverState.features[feature] !== newValue) {
+          setFeatures(prev => ({ ...prev, ...serverState.features }));
+        }
+      } catch (syncError) {
+        console.error('Error syncing feature state:', syncError);
+      }
+    }
   };
-  
+
+  // Add event listener for WebSocket updates
+  useEffect(() => {
+    const handleFeatureUpdate = (event: CustomEvent) => {
+      const { features: updatedFeatures } = event.detail;
+      setFeatures(prev => ({ ...prev, ...updatedFeatures }));
+    };
+    
+    window.addEventListener('featureUpdate', handleFeatureUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('featureUpdate', handleFeatureUpdate as EventListener);
+    };
+  }, []);
+
   // Feature-specific toggle handlers that use the generic handler
   const handleWebAccessToggle = () => handleFeatureToggle('webAccess');
   const handleThinkingToggle = () => handleFeatureToggle('thinking');

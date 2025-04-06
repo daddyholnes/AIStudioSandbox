@@ -6,6 +6,11 @@ import { livekitHandler } from "./livekit";
 import { aiHandler } from "./ai";
 import { webSocketRoomManager } from "./services/websocket";
 import { genkitHandler } from './services/genkit';
+import express from 'express';
+import { StorageService } from './services/storage';
+
+const router = express.Router();
+const storageService = new StorageService();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
@@ -577,6 +582,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
+  // Get feature toggles
+  router.get('/api/ai/features', async (req, res) => {
+    try {
+      const sessionId = req.query.sessionId as string;
+      
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Session ID is required' });
+      }
+      
+      const session = await storageService.getAISession(sessionId);
+      res.json({ features: session?.features || {} });
+    } catch (error) {
+      console.error('Error getting features:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Update feature toggles
+  router.post('/api/ai/features', async (req, res) => {
+    try {
+      const sessionId = req.query.sessionId as string;
+      
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Session ID is required' });
+      }
+      
+      const featureUpdates = req.body;
+      const session = await storageService.getAISession(sessionId) || { features: {} };
+      
+      session.features = { ...session.features, ...featureUpdates };
+      await storageService.updateAISession(sessionId, session);
+      
+      // Broadcast feature updates to other connected clients
+      const webSocketService = req.app.get('webSocketService');
+      if (webSocketService) {
+        webSocketService.broadcastToSession(sessionId, {
+          type: 'featureUpdate',
+          features: featureUpdates
+        });
+      }
+      
+      res.json({ features: session.features });
+    } catch (error) {
+      console.error('Error updating features:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   return httpServer;
 }
