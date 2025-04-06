@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { v4 as uuidv4 } from 'uuid';
 import { log } from '../vite';
+import { z } from 'zod';
 
 // Participant in a room
 interface Participant {
@@ -28,6 +29,74 @@ interface Room {
 interface WebSocketWithId extends WebSocket {
   clientId: string;
 }
+
+// Message schemas for validation
+const PositionSchema = z.object({
+  line: z.number(),
+  column: z.number(),
+});
+
+// Base schema for all messages
+const BaseMessageSchema = z.object({
+  type: z.string(),
+  timestamp: z.number().optional(),
+});
+
+// Event schema for general validation
+const EventSchema = BaseMessageSchema.extend({
+  type: z.string(),
+  payload: z.record(z.unknown()).optional(),
+});
+
+// Specific message schemas
+const MessageSchemas = {
+  ping: BaseMessageSchema.extend({
+    type: z.literal('ping'),
+  }),
+  
+  create_room: BaseMessageSchema.extend({
+    type: z.literal('create_room'),
+    roomId: z.string().optional(),
+  }),
+  
+  join_room: BaseMessageSchema.extend({
+    type: z.literal('join_room'),
+    roomId: z.string(),
+    participantName: z.string(),
+    isPublisher: z.boolean().optional(),
+  }),
+  
+  leave_room: BaseMessageSchema.extend({
+    type: z.literal('leave_room'),
+    roomId: z.string().optional(),
+  }),
+  
+  get_participants: BaseMessageSchema.extend({
+    type: z.literal('get_participants'),
+    roomId: z.string(),
+  }),
+  
+  status_update: BaseMessageSchema.extend({
+    type: z.literal('status_update'),
+    status: z.enum(['active', 'idle', 'away']),
+  }),
+  
+  cursor_update: BaseMessageSchema.extend({
+    type: z.literal('cursor_update'),
+    position: PositionSchema,
+  }),
+  
+  code_update: BaseMessageSchema.extend({
+    type: z.literal('code_update'),
+    fileId: z.string(),
+    content: z.string(),
+  }),
+  
+  chat_message: BaseMessageSchema.extend({
+    type: z.literal('chat_message'),
+    message: z.string(),
+  }),
+};
 
 /**
  * WebSocketRoomManager
@@ -92,51 +161,100 @@ export class WebSocketRoomManager {
    */
   private handleMessage(ws: WebSocketWithId, message: Buffer): void {
     try {
-      const data = JSON.parse(message.toString());
+      // Parse the raw message
+      const rawData = JSON.parse(message.toString());
       
-      switch (data.type) {
-        case 'ping':
-          // Respond to ping with pong
-          ws.send(JSON.stringify({ type: 'pong' }));
-          break;
+      // Validate with the base event schema
+      const result = EventSchema.safeParse(rawData);
+      if (!result.success) {
+        log(`Invalid message format from client ${ws.clientId}: ${result.error}`, 'websocket');
+        ws.send(JSON.stringify({ 
+          type: 'error', 
+          message: 'Invalid message format' 
+        }));
+        return;
+      }
+      
+      // Now we have a valid event with at least a type field
+      const data = result.data;
+      const messageType = data.type;
+      
+      // Validate against specific message schema if available
+      if (messageType in MessageSchemas) {
+        try {
+          const schema = MessageSchemas[messageType as keyof typeof MessageSchemas];
+          const validatedData = schema.parse(data);
           
-        case 'create_room':
-          this.handleCreateRoom(ws, data);
-          break;
-          
-        case 'join_room':
-          this.handleJoinRoom(ws, data);
-          break;
-          
-        case 'leave_room':
-          this.handleLeaveRoom(ws);
-          break;
-          
-        case 'get_participants':
-          this.handleGetParticipants(ws, data);
-          break;
-          
-        case 'status_update':
-          this.handleStatusUpdate(ws, data);
-          break;
-          
-        case 'cursor_update':
-          this.handleCursorUpdate(ws, data);
-          break;
-          
-        case 'code_update':
-          this.handleCodeUpdate(ws, data);
-          break;
-          
-        case 'chat_message':
-          this.handleChatMessage(ws, data);
-          break;
-          
-        default:
-          log(`Unknown message type from client ${ws.clientId}: ${data.type}`, 'websocket');
+          // Process the message based on type with validated data
+          this.processMessage(ws, messageType, validatedData);
+        } catch (validationError) {
+          log(`Message validation failed for type ${messageType} from client ${ws.clientId}: ${validationError}`, 'websocket');
+          ws.send(JSON.stringify({ 
+            type: 'error', 
+            message: `Invalid message format for ${messageType}` 
+          }));
+        }
+      } else {
+        // Unknown message type or no schema available, process with basic validation
+        log(`Processing message type ${messageType} from client ${ws.clientId} with basic validation`, 'websocket');
+        this.processMessage(ws, messageType, data);
       }
     } catch (error) {
       log(`Error parsing message from client ${ws.clientId}: ${error}`, 'websocket');
+    }
+  }
+  
+  /**
+   * Process a validated message based on its type
+   * @param ws WebSocket connection
+   * @param messageType Message type
+   * @param data Validated message data
+   */
+  private processMessage(ws: WebSocketWithId, messageType: string, data: any): void {
+    switch (messageType) {
+      case 'ping':
+        // Respond to ping with pong
+        ws.send(JSON.stringify({ type: 'pong' }));
+        break;
+        
+      case 'create_room':
+        this.handleCreateRoom(ws, data);
+        break;
+        
+      case 'join_room':
+        this.handleJoinRoom(ws, data);
+        break;
+        
+      case 'leave_room':
+        this.handleLeaveRoom(ws);
+        break;
+        
+      case 'get_participants':
+        this.handleGetParticipants(ws, data);
+        break;
+        
+      case 'status_update':
+        this.handleStatusUpdate(ws, data);
+        break;
+        
+      case 'cursor_update':
+        this.handleCursorUpdate(ws, data);
+        break;
+        
+      case 'code_update':
+        this.handleCodeUpdate(ws, data);
+        break;
+        
+      case 'chat_message':
+        this.handleChatMessage(ws, data);
+        break;
+        
+      default:
+        log(`Unknown message type from client ${ws.clientId}: ${messageType}`, 'websocket');
+        ws.send(JSON.stringify({ 
+          type: 'error', 
+          message: 'Unknown message type' 
+        }));
     }
   }
   

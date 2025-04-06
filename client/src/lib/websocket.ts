@@ -23,9 +23,10 @@ export const initWebSocket = (): WebSocket => {
     socket.close();
   }
   
-  // Create new WebSocket with path to avoid conflicts with Vite
+  // Create new WebSocket with path to avoid conflicts with other WebSocket services
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/ws`;
+  const wsUrl = `${protocol}//${window.location.host}/ws/livekit`;
+  console.log(`Connecting to LiveKit WebSocket at ${wsUrl}...`);
   socket = new WebSocket(wsUrl);
   
   socket.onopen = () => {

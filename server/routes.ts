@@ -13,7 +13,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebSocket server for LiveKit events
   const wss = new WebSocketServer({ 
     server: httpServer,
-    path: '/ws' // Use a specific path to avoid conflicts with Vite's WebSocket
+    path: '/ws/livekit' // Use a specific path to avoid conflicts with other WebSockets
   });
   
   // Initialize WebSocket collaboration service with the same HTTP server

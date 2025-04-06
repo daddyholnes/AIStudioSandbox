@@ -35,9 +35,16 @@ const PositionSchema = z.object({
   column: z.number(),
 });
 
+// Base schema for all messages
 const BaseMessageSchema = z.object({
   type: z.string(),
   timestamp: z.number().optional(),
+});
+
+// General event schema for initial validation
+const EventSchema = BaseMessageSchema.extend({
+  type: z.string(),
+  payload: z.record(z.unknown()).optional(),
 });
 
 const MessageSchemas = {
@@ -135,6 +142,92 @@ class WebSocketCollab extends EventEmitter {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private pingInterval: NodeJS.Timeout | null = null;
   private pingIntervalMs: number = 30000; // 30 seconds
+  
+  /**
+   * Handle and validate incoming WebSocket messages
+   * @param rawData The raw message data (already parsed from JSON)
+   */
+  private handleMessage(rawData: unknown): void {
+    // Validate the message against the base event schema
+    const result = EventSchema.safeParse(rawData);
+    if (!result.success) {
+      console.error('Invalid message format:', result.error);
+      return;
+    }
+    
+    // Now we have a valid event with at least a type field
+    const data = result.data;
+    const messageType = data.type;
+    
+    // Additional validation with specific message schemas when available
+    if (messageType in MessageSchemas) {
+      try {
+        // Validate against the appropriate schema
+        const schema = MessageSchemas[messageType as keyof typeof MessageSchemas];
+        const validatedData = schema.parse(data);
+        
+        // Process the validated message
+        this.processMessage(messageType, validatedData);
+      } catch (validationError) {
+        console.error(`Message validation failed for type ${messageType}:`, validationError);
+      }
+    } else {
+      // For unknown message types, just process with basic validation
+      this.processMessage(messageType, data);
+    }
+  }
+  
+  /**
+   * Process a validated message
+   * @param messageType The message type
+   * @param data The validated message data
+   */
+  private processMessage(messageType: string, data: any): void {
+    // Handle client ID assignment
+    if (messageType === 'client_id') {
+      this.clientId = data.clientId;
+    }
+    
+    // Handle room join confirmation
+    else if (messageType === 'room_joined') {
+      this.roomId = data.roomId;
+      this.emit('room-joined', data);
+    }
+    
+    // Handle room leave confirmation
+    else if (messageType === 'room_left') {
+      this.roomId = null;
+      this.emit('room-left', data);
+    }
+    
+    // Handle participant joined event
+    else if (messageType === 'participant_joined') {
+      this.emit('participant-joined', data);
+    }
+    
+    // Handle participant left event
+    else if (messageType === 'participant_left') {
+      this.emit('participant-left', data);
+    }
+    
+    // Handle cursor update event
+    else if (messageType === 'cursor_update') {
+      this.emit('cursor-update', data);
+    }
+    
+    // Handle code update event
+    else if (messageType === 'code_update') {
+      this.emit('code-update', data);
+    }
+    
+    // Handle ping response
+    else if (messageType === 'pong') {
+      // Connection is alive, nothing to do
+    }
+    
+    // Forward all messages as a generic message event
+    this.emit('message', data);
+  }
 
   /**
    * Connect to the WebSocket server
@@ -149,6 +242,7 @@ class WebSocketCollab extends EventEmitter {
         // Create a new WebSocket connection
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/collab`;
+        console.log(`Connecting to WebSocket server at ${wsUrl}...`);
         this.socket = new WebSocket(wsUrl);
         
         // Set up event handlers
@@ -184,76 +278,9 @@ class WebSocketCollab extends EventEmitter {
         this.socket.onmessage = (event) => {
           try {
             const rawData = JSON.parse(event.data);
-            
-            // Validate message structure and data types
-            if (!rawData || typeof rawData !== 'object' || !rawData.type) {
-              console.error('Invalid message format received:', rawData);
-              return;
-            }
-            
-            let data = rawData;
-            const messageType = rawData.type as string;
-            
-            // Additional validation with zod schemas when available
-            if (messageType in MessageSchemas) {
-              try {
-                // Validate against the appropriate schema
-                const schema = MessageSchemas[messageType as keyof typeof MessageSchemas];
-                data = schema.parse(rawData);
-                console.debug(`Validated message of type: ${messageType}`);
-              } catch (validationError) {
-                console.error(`Message validation failed for type ${messageType}:`, validationError);
-                // Continue with the original data but log the error
-                data = rawData;
-              }
-            }
-            
-            // Handle client ID assignment
-            if (messageType === 'client_id') {
-              this.clientId = data.clientId;
-            }
-            
-            // Handle room join confirmation
-            if (messageType === 'room_joined') {
-              this.roomId = data.roomId;
-              this.emit('room-joined', data);
-            }
-            
-            // Handle room leave confirmation
-            if (messageType === 'room_left') {
-              this.roomId = null;
-              this.emit('room-left', data);
-            }
-            
-            // Handle participant joined event
-            if (messageType === 'participant_joined') {
-              this.emit('participant-joined', data);
-            }
-            
-            // Handle participant left event
-            if (messageType === 'participant_left') {
-              this.emit('participant-left', data);
-            }
-            
-            // Handle cursor update event
-            if (messageType === 'cursor_update') {
-              this.emit('cursor-update', data);
-            }
-            
-            // Handle code update event
-            if (messageType === 'code_update') {
-              this.emit('code-update', data);
-            }
-            
-            // Handle ping response
-            if (messageType === 'pong') {
-              // Connection is alive, nothing to do
-            }
-            
-            // Forward all messages as a generic message event
-            this.emit('message', data);
+            this.handleMessage(rawData);
           } catch (error) {
-            console.error('Error processing WebSocket message:', error);
+            console.error('Error parsing WebSocket message:', error);
           }
         };
       } catch (error) {

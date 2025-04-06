@@ -1,0 +1,101 @@
+Proper env variable handling
+
+⚠️ Required Fixes
+1. Message Validation Gap
+File: client/src/utils/WebSocketCollab.ts
+
+typescript
+// Add validation before handling messages
+private handleMessage(rawData: unknown) {
+  const result = EventSchema.safeParse(rawData);
+  if (!result.success) {
+    console.error('Invalid message format:', result.error);
+    return;
+  }
+  // Proceed with validated data
+}
+2. Terminal Sync Optimization
+File: client/src/App.tsx
+
+tsx
+// Add debouncing to prevent flooding
+const sendTerminalUpdate = useDebouncedCallback((input: string) => {
+  sendEvent({
+    type: 'TERMINAL_INPUT',
+    payload: { input }
+  });
+}, 300); // 300ms debounce
+3. Server-Side Room Management
+File: server/src/websocket.ts
+
+typescript
+// Add active room tracking
+const activeRooms = new Map<string, Set<WebSocket>>();
+
+wss.on('connection', (ws, req) => {
+  const roomId = getRoomIdFromRequest(req);
+  
+  if (!activeRooms.has(roomId)) {
+    activeRooms.set(roomId, new Set());
+  }
+  activeRooms.get(roomId)!.add(ws);
+
+  ws.on('close', () => {
+    activeRooms.get(roomId)?.delete(ws);
+  });
+});
+🚀 Recommended Upgrades
+Real-Time Collaboration
+Add conflict-free synchronization using automerge:
+
+bash
+npm install @automerge/automerge
+typescript
+// client/src/utils/collabState.ts
+import { Automerge } from '@automerge/automerge';
+
+export class CollabDocument {
+  private doc = Automerge.init();
+  
+  applyUpdate(update: Uint8Array) {
+    this.doc = Automerge.applyChanges(this.doc, [update]);
+  }
+  
+  getCode() {
+    return this.doc.code as string;
+  }
+}
+Enhanced Terminal
+Implement terminal session recovery:
+
+tsx
+// client/src/components/Terminal.tsx
+useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      reconnectTerminalSession();
+    }
+  };
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  return () => document.removeEventListener(handleVisibilityChange);
+}, []);
+Monitoring
+Add performance tracking:
+
+typescript
+// server/src/monitoring.ts
+import { Meter } from '@opentelemetry/api';
+
+export const wsMetrics = {
+  connections: meter.createCounter('websocket.connections'),
+  messages: meter.createCounter('websocket.messages'),
+  errors: meter.createCounter('websocket.errors')
+};
+📈 Next Steps
+Add end-to-end tests using Playwright
+
+Implement proper DOCX/PDF processing
+
+Set up monitoring dashboard (Grafana/Prometheus)
+
+The foundation is solid - focus on adding validation and conflict resolution next. Would you like me to create specific PRs for any of these improvements?
