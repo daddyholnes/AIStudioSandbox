@@ -556,6 +556,7 @@ const AIPanel = ({
               )}
               
               {chatMode === 'settings' && (
+                console.log('Settings mode active, commandsEnabled:', commandsEnabled),
                 <div className="flex-1 overflow-y-auto p-4">
                   <h3 className="text-sm font-medium mb-2">Model Settings</h3>
                   <div className="space-y-4">
@@ -653,7 +654,10 @@ const AIPanel = ({
                         variant={commandsEnabled ? "default" : "outline"} 
                         size="sm" 
                         className="h-7 px-2 text-xs"
-                        onClick={() => onCommandsToggle && onCommandsToggle()}
+                        onClick={() => {
+                          console.log('Commands button clicked, handler exists:', !!onCommandsToggle);
+                          onCommandsToggle && onCommandsToggle();
+                        }}
                       >
                         {commandsEnabled ? "Enabled" : "Disabled"}
                       </Button>

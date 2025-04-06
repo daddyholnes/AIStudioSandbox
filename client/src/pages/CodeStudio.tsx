@@ -185,8 +185,9 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   };
   
   const handleCommandsToggle = () => {
-    setCommandsEnabled(!commandsEnabled);
-    console.log('Commands selected');
+    const newValue = !commandsEnabled;
+    setCommandsEnabled(newValue);
+    console.log('Commands toggled to:', newValue);
   };
 
   const executeCode = async () => {
