@@ -116,12 +116,33 @@ export class WebSocketRoomManager {
       return;
     }
     
-    // Create WebSocket server with a unique path
-    this.wss = new WebSocketServer({ 
-      server,
-      path: '/ws/collab',  // Use a unique path to avoid conflicts
-      perMessageDeflate: false, // Disable compression which may cause issues
-      clientTracking: true     // Enable client tracking for better connection management
+    // Create WebSocket server with noServer true to handle upgrade manually
+    this.wss = new WebSocketServer({
+      noServer: true, // Handle upgrade manually
+      perMessageDeflate: false // Disable compression which may cause issues
+    });
+    
+    // Add custom upgrade handler to the HTTP server
+    server.on('upgrade', (request, socket, head) => {
+      const url = new URL(request.url || '', 'http://localhost');
+      
+      // Only handle our specific path
+      if (url.pathname === '/ws/collab') {
+        this.wss.handleUpgrade(request, socket, head, (ws) => {
+          this.wss.emit('connection', ws, request);
+        });
+      }
+    });
+    
+    // Add CORS headers for WebSocket
+    const allowedOrigins = ['https://*.replit.dev', 'http://localhost:*'];
+    
+    this.wss.on('headers', (headers) => {
+      headers.push(
+        'Access-Control-Allow-Origin: ' + allowedOrigins.join(', '),
+        'Access-Control-Allow-Methods: GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers: Content-Type'
+      );
     });
     
     log('WebSocket collaboration server initialized', 'websocket');

@@ -20,20 +20,47 @@ import { X } from 'lucide-react';
 
 interface SettingsPanelProps {
   onClose: () => void;
+  features?: {
+    webAccess: boolean;
+    thinking: boolean;
+    prompts: boolean;
+    genkit: boolean;
+    commands: boolean;
+  };
+  onFeatureToggle?: (feature: 'webAccess' | 'thinking' | 'prompts' | 'genkit' | 'commands', value: boolean) => void;
 }
 
-export function SettingsPanel({ onClose }: SettingsPanelProps) {
+export function SettingsPanel({ 
+  onClose, 
+  features = {
+    webAccess: false,
+    thinking: false,
+    prompts: true,
+    genkit: true,
+    commands: false
+  },
+  onFeatureToggle 
+}: SettingsPanelProps) {
   // State for selected models
   const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
   const [temperature, setTemperature] = useState(0.7);
   
-  // State for AI options
-  const [webAccessEnabled, setWebAccessEnabled] = useState(false);
-  const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  // State for history (not part of features state yet)
   const [historyEnabled, setHistoryEnabled] = useState(true);
-  const [promptsEnabled, setPromptsEnabled] = useState(true);
-  const [genkitEnabled, setGenkitEnabled] = useState(true);
-  const [commandsEnabled, setCommandsEnabled] = useState(false);
+  
+  // Using values from features (passed from parent)
+  const webAccessEnabled = features.webAccess;
+  const thinkingEnabled = features.thinking;
+  const promptsEnabled = features.prompts;
+  const genkitEnabled = features.genkit;
+  const commandsEnabled = features.commands;
+  
+  // Toggle handlers that call parent function if available or use local state
+  const handleToggle = (feature: 'webAccess' | 'thinking' | 'prompts' | 'genkit' | 'commands', value: boolean) => {
+    if (onFeatureToggle) {
+      onFeatureToggle(feature, value);
+    }
+  };
   
   // State for appearance options
   const [darkMode, setDarkMode] = useState(true);
@@ -159,7 +186,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <Switch 
                   id="web-access"
                   checked={webAccessEnabled}
-                  onCheckedChange={setWebAccessEnabled}
+                  onCheckedChange={(value) => handleToggle('webAccess', value)}
                 />
               </div>
               
@@ -173,7 +200,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <Switch 
                   id="thinking"
                   checked={thinkingEnabled}
-                  onCheckedChange={setThinkingEnabled}
+                  onCheckedChange={(value) => handleToggle('thinking', value)}
                 />
               </div>
               
@@ -187,7 +214,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <Switch 
                   id="prompts"
                   checked={promptsEnabled}
-                  onCheckedChange={setPromptsEnabled}
+                  onCheckedChange={(value) => handleToggle('prompts', value)}
                 />
               </div>
               
@@ -201,7 +228,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <Switch 
                   id="genkit"
                   checked={genkitEnabled}
-                  onCheckedChange={setGenkitEnabled}
+                  onCheckedChange={(value) => handleToggle('genkit', value)}
                 />
               </div>
               
@@ -215,7 +242,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <Switch 
                   id="commands"
                   checked={commandsEnabled}
-                  onCheckedChange={setCommandsEnabled}
+                  onCheckedChange={(value) => handleToggle('commands', value)}
                 />
               </div>
             </CardContent>

@@ -254,10 +254,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // AI feature toggles
+  // GET AI feature toggles
+  app.get('/api/ai/features', async (req, res) => {
+    try {
+      const sessionId = req.query.sessionId as string || 'default';
+      const session = await storage.getOrCreateAISession(sessionId);
+      
+      return res.status(200).json({
+        success: true,
+        features: session.features || {}
+      });
+    } catch (error) {
+      console.error('Error fetching features:', error);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to fetch features',
+        error: (error as Error).message
+      });
+    }
+  });
+  
+  // POST AI feature toggles
   app.post('/api/ai/features', async (req, res) => {
     try {
-      const { webAccess, thinking, genkit, commands } = req.body;
+      const { webAccess, thinking, genkit, commands, prompts } = req.body;
       const sessionId = req.query.sessionId as string || 'default';
       
       // Get or create session
@@ -265,12 +285,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Initialize features object if it doesn't exist
       if (!session.features) {
-        session.features = {};
+        session.features = {
+          webAccess: false,
+          thinking: false,
+          prompts: true,  // Default to enabled
+          genkit: true,   // Default to enabled
+          commands: false
+        };
       }
       
       // Update features
       if (webAccess !== undefined) session.features.webAccess = webAccess;
       if (thinking !== undefined) session.features.thinking = thinking;
+      if (prompts !== undefined) session.features.prompts = prompts;
       if (genkit !== undefined) session.features.genkit = genkit;
       if (commands !== undefined) session.features.commands = commands;
       

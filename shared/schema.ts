@@ -145,6 +145,7 @@ export type AISession = {
   features?: {
     webAccess?: boolean;
     thinking?: boolean;
+    prompts?: boolean;
     genkit?: boolean;
     commands?: boolean;
   };

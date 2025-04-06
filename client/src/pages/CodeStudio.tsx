@@ -40,18 +40,50 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   
   // AI features state
   const [aiChatMode, setAiChatMode] = useState<'chat' | 'history' | 'settings'>('chat');
-  const [webAccessEnabled, setWebAccessEnabled] = useState(false);
-  const [thinkingEnabled, setThinkingEnabled] = useState(false);
-  const [promptsEnabled, setPromptsEnabled] = useState(true);
-  const [genkitEnabled, setGenkitEnabled] = useState(true);
-  const [commandsEnabled, setCommandsEnabled] = useState(false);
+  const [features, setFeatures] = useState({
+    webAccess: false,
+    thinking: false,
+    prompts: true,
+    genkit: true,
+    commands: false
+  });
+  
+  // Convenience accessor functions 
+  const webAccessEnabled = features.webAccess;
+  const thinkingEnabled = features.thinking;
+  const promptsEnabled = features.prompts;
+  const genkitEnabled = features.genkit;
+  const commandsEnabled = features.commands;
 
   useEffect(() => {
     // Fetch project files on component mount
     fetchFiles();
     // Create or join LiveKit room
     createOrJoinRoom();
+    // Fetch current feature toggle states
+    fetchFeatureStates();
   }, []);
+  
+  // Fetch the current state of all feature toggles from the server
+  const fetchFeatureStates = async () => {
+    try {
+      const response = await fetch('/api/ai/features');
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update local state with server state
+        setFeatures(prev => ({
+          ...prev,
+          ...(data.features || {})  // Only update if features exist in response
+        }));
+        console.log('Feature states synchronized with server');
+      } else {
+        console.error('Failed to fetch feature states:', data.message);
+      }
+    } catch (error) {
+      console.error('Error fetching feature states:', error);
+    }
+  };
 
   const fetchFiles = async () => {
     try {
@@ -159,7 +191,10 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   // Handle AI feature toggles
   const handlePromptPanel = () => {
     setActivePanel(activePanel === 'prompt' ? '' : 'prompt');
-    setPromptsEnabled(true);
+    setFeatures(prev => ({
+      ...prev,
+      prompts: true
+    }));
     console.log('Prompts selected');
   };
   
@@ -169,89 +204,42 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
     console.log('History selected');
   };
   
-  const handleWebAccessToggle = () => {
-    const newValue = !webAccessEnabled;
-    setWebAccessEnabled(newValue);
+  // Updated generic toggle handler that works with any feature
+  const handleFeatureToggle = (featureName: 'webAccess' | 'thinking' | 'prompts' | 'genkit' | 'commands') => {
+    const newValue = !features[featureName];
     
-    // Call the API to toggle web access
+    // Update state with the new value
+    setFeatures(prev => ({
+      ...prev,
+      [featureName]: newValue
+    }));
+    
+    // Call the API to toggle the feature
     fetch('/api/ai/features', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ webAccess: newValue })
+      body: JSON.stringify({ [featureName]: newValue })
     })
     .then(res => res.json())
     .then(data => {
-      console.log('Web Access ' + (newValue ? 'enabled' : 'disabled'));
+      console.log(`${featureName} ${newValue ? 'enabled' : 'disabled'}`);
     })
     .catch(error => {
-      console.error('Error toggling web access:', error);
+      console.error(`Error toggling ${featureName}:`, error);
       // Revert UI state if API call fails
-      setWebAccessEnabled(!newValue);
+      setFeatures(prev => ({
+        ...prev,
+        [featureName]: !newValue
+      }));
     });
   };
   
-  const handleThinkingToggle = () => {
-    const newValue = !thinkingEnabled;
-    setThinkingEnabled(newValue);
-    
-    // Call the API to toggle thinking
-    fetch('/api/ai/features', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ thinking: newValue })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Thinking ' + (newValue ? 'enabled' : 'disabled'));
-    })
-    .catch(error => {
-      console.error('Error toggling thinking:', error);
-      // Revert UI state if API call fails
-      setThinkingEnabled(!newValue);
-    });
-  };
-  
-  const handleGenkitToggle = () => {
-    const newValue = !genkitEnabled;
-    setGenkitEnabled(newValue);
-    
-    // Call the API to toggle genkit
-    fetch('/api/ai/features', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ genkit: newValue })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Genkit ' + (newValue ? 'enabled' : 'disabled'));
-    })
-    .catch(error => {
-      console.error('Error toggling genkit:', error);
-      // Revert UI state if API call fails
-      setGenkitEnabled(!newValue);
-    });
-  };
-  
-  const handleCommandsToggle = () => {
-    const newValue = !commandsEnabled;
-    setCommandsEnabled(newValue);
-    
-    // Call the API to toggle commands
-    fetch('/api/ai/features', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commands: newValue })
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Commands ' + (newValue ? 'enabled' : 'disabled'));
-    })
-    .catch(error => {
-      console.error('Error toggling commands:', error);
-      // Revert UI state if API call fails
-      setCommandsEnabled(!newValue);
-    });
-  };
+  // Feature-specific toggle handlers that use the generic handler
+  const handleWebAccessToggle = () => handleFeatureToggle('webAccess');
+  const handleThinkingToggle = () => handleFeatureToggle('thinking');
+  const handlePromptsToggle = () => handleFeatureToggle('prompts');
+  const handleGenkitToggle = () => handleFeatureToggle('genkit');
+  const handleCommandsToggle = () => handleFeatureToggle('commands');
 
   const executeCode = async () => {
     // Add a loading message
@@ -389,7 +377,36 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
             <>
               <ResizableHandle />
               <ResizablePanel id="settings-panel" order={3} defaultSize={20} minSize={20} maxSize={40}>
-                <SettingsPanel onClose={() => handleToggleSettingsPanel()} />
+                <SettingsPanel 
+                  onClose={() => handleToggleSettingsPanel()} 
+                  features={features}
+                  onFeatureToggle={(feature, value) => {
+                    // Update the local state
+                    setFeatures(prev => ({
+                      ...prev,
+                      [feature]: value
+                    }));
+                    
+                    // Call the API to update server-side state
+                    fetch('/api/ai/features', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ [feature]: value })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                      console.log(`${feature} ${value ? 'enabled' : 'disabled'}`);
+                    })
+                    .catch(error => {
+                      console.error(`Error toggling ${feature}:`, error);
+                      // Revert UI state if API call fails
+                      setFeatures(prev => ({
+                        ...prev,
+                        [feature]: !value
+                      }));
+                    });
+                  }}
+                />
               </ResizablePanel>
             </>
           )}

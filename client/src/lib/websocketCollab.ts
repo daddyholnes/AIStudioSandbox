@@ -239,9 +239,10 @@ class WebSocketCollab extends EventEmitter {
         // Clear any existing connection
         this.disconnect();
         
-        // Create a new WebSocket connection
+        // Create a new WebSocket connection with sessionId
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws/collab`;
+        const sessionId = localStorage.getItem('sessionId') || 'default';
+        const wsUrl = `${protocol}//${window.location.host}/ws/collab?sessionId=${sessionId}`;
         console.log(`Connecting to WebSocket server at ${wsUrl}...`);
         this.socket = new WebSocket(wsUrl);
         

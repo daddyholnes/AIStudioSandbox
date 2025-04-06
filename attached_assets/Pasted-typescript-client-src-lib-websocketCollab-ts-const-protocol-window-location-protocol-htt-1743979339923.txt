@@ -1,0 +1,141 @@
+typescript
+// client/src/lib/websocketCollab.ts
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsUrl = `${protocol}//${window.location.host}/ws/collab?sessionId=${sessionId}`;
+this.socket = new WebSocket(wsUrl);
+
+// Add these event handlers
+this.socket.onerror = (error) => {
+  console.error('WebSocket Error:', error);
+};
+
+this.socket.onclose = (event) => {
+  if (event.code === 1006) {
+    console.log('Reconnecting...');
+    setTimeout(() => this.connect(), 3000);
+  }
+};
+typescript
+// server/services/websocket.ts
+this.wss = new WebSocketServer({
+  noServer: true, // Handle upgrade manually
+  perMessageDeflate: false
+});
+
+// Add to Express server
+httpServer.on('upgrade', (request, socket, head) => {
+  if (request.url === '/ws/collab') {
+    this.wss.handleUpgrade(request, socket, head, (ws) => {
+      this.wss.emit('connection', ws, request);
+    });
+  }
+});
+
+// Add CORS headers for WebSocket
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? ['https://your-repl.co']
+  : ['https://*.replit.dev', 'http://localhost:*'];
+
+this.wss.on('headers', (headers) => {
+  headers.push(
+    'Access-Control-Allow-Origin: ' + allowedOrigins.join(', '),
+    'Access-Control-Allow-Methods: GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers: Content-Type'
+  );
+});
+typescript
+// server/routes.ts
+app.get('/api/ai/features', async (req, res) => {
+  try {
+    const sessionId = req.query.sessionId as string || 'default';
+    const session = await storage.getOrCreateAISession(sessionId);
+    
+    return res.status(200).json({
+      success: true,
+      features: session.features || {}
+    });
+  } catch (error) {
+    console.error('Error fetching features:', error);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch features'
+    });
+  }
+});
+typescript
+// client/src/components/CodeStudio.tsx
+const [features, setFeatures] = useState({
+  webAccess: false,
+  thinking: false,
+  genkit: false,
+  commands: false
+});
+
+// Fetch initial state
+useEffect(() => {
+  fetch('/api/ai/features')
+    .then(res => res.json())
+    .then(data => setFeatures(data.features));
+}, []);
+
+// Updated toggle handler
+const handleFeatureToggle = (feature: string) => async () => {
+  const newValue = !features[feature];
+  
+  try {
+    const response = await fetch('/api/ai/features', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [feature]: newValue })
+    });
+    
+    if (response.ok) {
+      setFeatures(prev => ({ ...prev, [feature]: newValue }));
+    }
+  } catch (error) {
+    console.error(`Error toggling ${feature}:`, error);
+  }
+};
+
+// Use like this in your buttons
+<Button 
+  active={features.webAccess}
+  onClick={handleFeatureToggle('webAccess')}
+>
+  Web Access
+</Button>
+bash
+curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
+-H "Host: localhost" http://localhost:3000/ws/collab
+bash
+# Get current features
+curl http://localhost:3000/api/ai/features
+
+# Toggle web access
+curl -X POST http://localhost:3000/api/ai/features \
+  -H "Content-Type: application/json" \
+  -d '{"webAccess":true}'
+Here's the comprehensive solution to resolve both issues:
+1. WebSocket Collaboration Fix
+Client-Side Update
+Server-Side Fix
+2. Feature Toggle Implementation
+Add GET Endpoint
+Update UI Handling
+Verification Steps
+Test WebSocket Connection
+
+Test Feature Toggles
+
+Key Changes Made:
+
+Added manual WebSocket upgrade handling
+
+Implemented proper CORS configuration for Replit's environment
+
+Added auto-reconnect logic for WebSocket
+
+Created feature state synchronization between UI and backend
+
+Added proper error handling and state persistence
+These changes address both the WebSocket connection instability and feature toggle synchronization issues while maintaining compatibility with Replit's hosting environment.
