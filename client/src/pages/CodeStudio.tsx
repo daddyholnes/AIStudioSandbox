@@ -170,24 +170,87 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   };
   
   const handleWebAccessToggle = () => {
-    setWebAccessEnabled(!webAccessEnabled);
-    console.log('Web Access selected');
+    const newValue = !webAccessEnabled;
+    setWebAccessEnabled(newValue);
+    
+    // Call the API to toggle web access
+    fetch('/api/ai/features', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webAccess: newValue })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Web Access ' + (newValue ? 'enabled' : 'disabled'));
+    })
+    .catch(error => {
+      console.error('Error toggling web access:', error);
+      // Revert UI state if API call fails
+      setWebAccessEnabled(!newValue);
+    });
   };
   
   const handleThinkingToggle = () => {
-    setThinkingEnabled(!thinkingEnabled);
-    console.log('Thinking selected');
+    const newValue = !thinkingEnabled;
+    setThinkingEnabled(newValue);
+    
+    // Call the API to toggle thinking
+    fetch('/api/ai/features', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ thinking: newValue })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Thinking ' + (newValue ? 'enabled' : 'disabled'));
+    })
+    .catch(error => {
+      console.error('Error toggling thinking:', error);
+      // Revert UI state if API call fails
+      setThinkingEnabled(!newValue);
+    });
   };
   
   const handleGenkitToggle = () => {
-    setGenkitEnabled(!genkitEnabled);
-    console.log('Genkit selected');
+    const newValue = !genkitEnabled;
+    setGenkitEnabled(newValue);
+    
+    // Call the API to toggle genkit
+    fetch('/api/ai/features', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ genkit: newValue })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Genkit ' + (newValue ? 'enabled' : 'disabled'));
+    })
+    .catch(error => {
+      console.error('Error toggling genkit:', error);
+      // Revert UI state if API call fails
+      setGenkitEnabled(!newValue);
+    });
   };
   
   const handleCommandsToggle = () => {
     const newValue = !commandsEnabled;
     setCommandsEnabled(newValue);
-    console.log('Commands toggled to:', newValue);
+    
+    // Call the API to toggle commands
+    fetch('/api/ai/features', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commands: newValue })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('Commands ' + (newValue ? 'enabled' : 'disabled'));
+    })
+    .catch(error => {
+      console.error('Error toggling commands:', error);
+      // Revert UI state if API call fails
+      setCommandsEnabled(!newValue);
+    });
   };
 
   const executeCode = async () => {
@@ -263,7 +326,7 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {activePanel === 'project' && (
             <>
-              <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+              <ResizablePanel id="project-panel" order={1} defaultSize={20} minSize={15} maxSize={30}>
                 <ProjectPanel 
                   files={files}
                   onFileSelect={handleFileSelect}
@@ -274,9 +337,13 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
             </>
           )}
           
-          <ResizablePanel defaultSize={activePanel ? 60 : 80}>
+          <ResizablePanel 
+            id="editor-panel" 
+            order={2} 
+            defaultSize={activePanel ? (activePanel === 'project' ? 80 : 60) : 100}
+          >
             <ResizablePanelGroup direction="vertical">
-              <ResizablePanel defaultSize={70}>
+              <ResizablePanel id="code-editor" order={1} defaultSize={70}>
                 <EditorPanel
                   openTabs={openTabs}
                   activeTab={activeTab}
@@ -287,7 +354,7 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
                 />
               </ResizablePanel>
               <ResizableHandle />
-              <ResizablePanel defaultSize={30}>
+              <ResizablePanel id="output-panel" order={2} defaultSize={30}>
                 <OutputPanel output={output} />
               </ResizablePanel>
             </ResizablePanelGroup>
@@ -296,7 +363,7 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
           {activePanel === 'ai' && (
             <>
               <ResizableHandle />
-              <ResizablePanel defaultSize={20} minSize={20} maxSize={40}>
+              <ResizablePanel id="ai-panel" order={3} defaultSize={20} minSize={20} maxSize={40}>
                 <AIPanel 
                   roomConnected={roomConnected}
                   roomName={roomName}
@@ -321,7 +388,7 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
           {activePanel === 'settings' && (
             <>
               <ResizableHandle />
-              <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+              <ResizablePanel id="settings-panel" order={3} defaultSize={20} minSize={20} maxSize={40}>
                 <SettingsPanel onClose={() => handleToggleSettingsPanel()} />
               </ResizablePanel>
             </>

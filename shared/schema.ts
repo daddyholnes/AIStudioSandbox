@@ -142,6 +142,12 @@ export type AISession = {
     model: string;
     temperature: number;
   };
+  features?: {
+    webAccess?: boolean;
+    thinking?: boolean;
+    genkit?: boolean;
+    commands?: boolean;
+  };
 };
 
 export type ProjectFileInfo = {

@@ -1,0 +1,129 @@
+Final Implementation Plan for AIStudioSandbox
+Based on the repo analysis and your requirements, here's the prioritized implementation sequence:
+
+1. Critical Fixes (WebSocket & UI Errors)
+Prompt for Replit Agent:
+
+bash
+# Fix WebSocket connection (server/services/websocket.ts)
+npm install ws @types/ws uuid
+sed -i 's/path: \/ws\/collab/path: \/ws/' server/services/websocket.ts
+sed -i '/new WebSocketServer/a\
+  perMessageDeflate: false,\
+  clientTracking: true,' server/services/websocket.ts
+typescript
+// Fix Select component nesting (client/src/components/ModelSelector.tsx)
+const ModelSelect = () => (
+  <Select>
+    <SelectTrigger className="w-[180px]">
+      <SelectValue placeholder="Select model" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectGroup>
+        <SelectLabel>Google Models</SelectLabel>
+        <SelectItem value="gemini-2.0">Gemini 2.0</SelectItem>
+      </SelectGroup>
+      {/* Remove any divs inside SelectGroup */}
+    </SelectContent>
+  </Select>
+);
+2. AI Feature Implementation
+Prompt for Replit Agent:
+
+typescript
+// Implement Web Access functionality (server/routes/ai.ts)
+router.post('/web-access', async (req, res) => {
+  const { enabled } = req.body;
+  try {
+    const result = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `Web access ${enabled ? 'enabled' : 'disabled'}`
+          }]
+        }]
+      })
+    });
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+3. Layout Normalization Fix
+Prompt for Replit Agent:
+
+typescript
+// Adjust ResizablePanel sizes (client/src/components/Layout.tsx)
+<ResizablePanelGroup direction="horizontal">
+  <ResizablePanel defaultSize={80}>
+    <Editor />
+  </ResizablePanel>
+  <ResizableHandle />
+  <ResizablePanel defaultSize={20}>
+    <Chat />
+  </ResizablePanel>
+</ResizablePanelGroup>
+4. Advanced Feature Implementation
+Prompt for Replit Agent:
+
+bash
+# Install image generation dependencies
+npm install @genkit-ai/googleai @genkit-ai/imagemodels
+typescript
+// Image generation endpoint (server/routes/image.ts)
+router.post('/generate-image', async (req, res) => {
+  const { prompt } = req.body;
+  const imagen = new ImageGenerativeModel({
+    model: 'imagegeneration',
+    apiKey: process.env.GEMINI_API_KEY
+  });
+  
+  const result = await imagen.generateImage({
+    prompt,
+    outputFormat: 'webp'
+  });
+  
+  res.json({ image: result.image });
+});
+5. Voice Input Implementation
+Prompt for Replit Agent:
+
+typescript
+// Add Web Speech API integration (client/src/utils/voice.ts)
+export const startVoiceInput = (onResult: (text: string) => void) => {
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = 'en-US';
+  
+  recognition.onresult = (event) => {
+    const transcript = Array.from(event.results)
+      .map(result => result[0].transcript)
+      .join('');
+    onResult(transcript);
+  };
+  
+  recognition.start();
+};
+Implementation Verification Checklist
+WebSocket Test
+
+bash
+curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Host: localhost" http://localhost:3000/ws
+AI Features Test
+
+bash
+curl -X POST http://localhost:3000/api/ai/features -H "Content-Type: application/json" -d '{"webAccess":true}'
+Image Generation Test
+
+bash
+curl -X POST http://localhost:3000/api/image -H "Content-Type: application/json" -d '{"prompt":"A futuristic coding environment"}'
+Next Steps:
+
+Implement real-time code execution using Docker
+
+Add VS Code extension marketplace integration
+
+Finalize Genkit model orchestration
+
+Let me know which component you'd like to prioritize next!

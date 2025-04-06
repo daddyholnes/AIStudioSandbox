@@ -14,7 +14,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebSocket server for LiveKit events
   const wss = new WebSocketServer({ 
     server: httpServer,
-    path: '/ws/livekit', // Use a specific path to avoid conflicts with other WebSockets
+    path: '/ws/livekit', // Keep original path for LiveKit events
     perMessageDeflate: false, // Disable compression which may cause issues
     clientTracking: true      // Enable client tracking for better connection management
   });
@@ -249,6 +249,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error explaining code:', error);
       return res.status(500).json({ 
         message: 'Failed to explain code',
+        error: (error as Error).message
+      });
+    }
+  });
+  
+  // AI feature toggles
+  app.post('/api/ai/features', async (req, res) => {
+    try {
+      const { webAccess, thinking, genkit, commands } = req.body;
+      const sessionId = req.query.sessionId as string || 'default';
+      
+      // Get or create session
+      const session = await storage.getOrCreateAISession(sessionId);
+      
+      // Initialize features object if it doesn't exist
+      if (!session.features) {
+        session.features = {};
+      }
+      
+      // Update features
+      if (webAccess !== undefined) session.features.webAccess = webAccess;
+      if (thinking !== undefined) session.features.thinking = thinking;
+      if (genkit !== undefined) session.features.genkit = genkit;
+      if (commands !== undefined) session.features.commands = commands;
+      
+      // Save session
+      await storage.saveAISession(session);
+      
+      return res.status(200).json({
+        success: true,
+        features: session.features
+      });
+    } catch (error) {
+      console.error('Error toggling AI features:', error);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to toggle AI features',
         error: (error as Error).message
       });
     }
