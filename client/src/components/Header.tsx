@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Sun, Moon, Play, Save, PlusCircle } from 'lucide-react';
 
 interface HeaderProps {
@@ -51,11 +51,56 @@ const Header = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: HeaderProps)
             <SelectTrigger className="w-[180px] h-8">
               <SelectValue placeholder="Select a model" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gemini-2.0-flash-exp">Gemini Flash</SelectItem>
-              <SelectItem value="gemini-2.0-pro-exp">Gemini Pro</SelectItem>
-              <SelectItem value="claude-3-sonnet-20240229">Claude 3 Sonnet</SelectItem>
-              <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+            <SelectContent className="max-h-80 overflow-y-auto">
+              <SelectGroup>
+                <SelectLabel>Gemini Models</SelectLabel>
+                <SelectItem value="gemini-2.0-flash-001">Gemini 2.0 Flash</SelectItem>
+                <SelectItem value="gemini-2.0-flash-lite-001">Gemini 2.0 Flash-Lite (Preview)</SelectItem>
+                <SelectItem value="gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro Experimental</SelectItem>
+                <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+                <SelectItem value="gemini-1.0-pro">Gemini 1.0 Pro</SelectItem>
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>PaLM Models</SelectLabel>
+                <SelectItem value="text-bison">PaLM 2 for Text</SelectItem>
+                <SelectItem value="chat-bison">PaLM 2 for Chat</SelectItem>
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Code Models</SelectLabel>
+                <SelectItem value="code-gecko">Codey for Code Completion</SelectItem>
+                <SelectItem value="code-bison">Codey for Code Generation</SelectItem>
+                <SelectItem value="codechat-bison">Codey for Code Chat</SelectItem>
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Vision Models</SelectLabel>
+                <SelectItem value="imagen-3.0-generate-002">Imagen 3</SelectItem>
+                <SelectItem value="imagen-3.0-fast-generate-001">Imagen 3 Fast</SelectItem>
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Anthropic Models</SelectLabel>
+                <SelectItem value="claude-3-7-sonnet">Claude 3.7 Sonnet</SelectItem>
+                <SelectItem value="claude-3-5-sonnet">Claude 3.5 Sonnet v2</SelectItem>
+                <SelectItem value="claude-3.5-haiku">Claude 3.5 Haiku</SelectItem>
+                <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+                <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Meta Models</SelectLabel>
+                <SelectItem value="llama-3.3">Llama 3.3 (Preview)</SelectItem>
+                <SelectItem value="llama-3.2">Llama 3.2 (Preview)</SelectItem>
+                <SelectItem value="llama-3.1">Llama 3.1</SelectItem>
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Mistral AI</SelectLabel>
+                <SelectItem value="mistral-small-3.1">Mistral Small 3.1 (25.03)</SelectItem>
+                <SelectItem value="mistral-large-24.11">Mistral Large (24.11)</SelectItem>
+                <SelectItem value="mistral-nemo">Mistral Nemo</SelectItem>
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Specialized Models</SelectLabel>
+                <SelectItem value="codestral-2405">Codestral (25.01)</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
