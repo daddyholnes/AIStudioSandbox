@@ -126,9 +126,15 @@ export class WebSocketRoomManager {
     server.on('upgrade', (request, socket, head) => {
       const url = new URL(request.url || '', 'http://localhost');
       
-      // Only handle our specific path
+      // Only handle our specific path, now supporting sessionId parameter
       if (url.pathname === '/ws/collab') {
+        // Extract the sessionId if present (not yet used but captured for future use)
+        const sessionId = url.searchParams.get('sessionId') || 'default';
+        
+        // Handle the upgrade regardless of sessionId parameter
         this.wss.handleUpgrade(request, socket, head, (ws) => {
+          // Attach the sessionId to the socket for future reference
+          (ws as any).sessionId = sessionId;
           this.wss.emit('connection', ws, request);
         });
       }
