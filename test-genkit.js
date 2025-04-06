@@ -19,25 +19,6 @@
  * - API key configuration
  * - Plugin initialization
  * - Flow definition capability
- * 
- * === NEXT STEPS ===
- * 
- * 1. Ensure your Gemini API key is set in your environment:
- *    - Windows Command Prompt: set GEMINI_API_KEY=your_actual_key
- *    - Windows PowerShell: $env:GEMINI_API_KEY = "your_actual_key"
- *    - macOS/Linux: export GEMINI_API_KEY=your_actual_key
- * 
- * 2. Run the test script:
- *    node test-genkit.js
- * 
- * 3. If you encounter errors related to the flow definition, try:
- *    - Review the error message for specific parameter requirements
- *    - Check if schema validation is needed for your input/output
- * 
- * 4. For additional troubleshooting:
- *    - Run 'npm list @genkit-ai/core' to verify installed version
- *    - Check Genkit documentation for your specific version
- *    - Review exported methods to ensure compatibility
  */
 
 console.log('Testing Genkit Integration');
@@ -73,20 +54,27 @@ try {
     }
   });
   
-  // 5. Test flow definition with the correct method from core
+  // 5. Fix the flow definition with proper schema parameters
   if (typeof core.defineFlow === 'function') {
-    // Based on debug output, defineFlow exists but needs correct parameters
     try {
-      const testFlow = core.defineFlow({
-        name: 'testFlow',
-        description: 'Genkit test flow',
-        run: async (input) => {
+      // Using dual-parameter style for defineFlow as required in newer versions
+      const testFlow = core.defineFlow(
+        {
+          name: 'testFlow',
+          description: 'Genkit test flow',
+          inputSchema: core.z.string(),
+          outputSchema: core.z.object({
+            success: core.z.boolean(),
+            message: core.z.string()
+          })
+        },
+        async (input) => {
           return { 
             success: true, 
-            message: `Processed input successfully` 
+            message: `Processed input successfully: ${input}` 
           };
         }
-      });
+      );
       
       console.log('Flow definition successful:', typeof testFlow === 'function');
       

@@ -1,0 +1,42 @@
+===== HOW TO RUN THE GENKIT TEST =====
+
+OPTION 1: Run directly with Node.js
+---------------------------------
+In PowerShell or Command Prompt, type:
+node test-genkit.js
+
+
+OPTION 2: Set API key and run
+---------------------------------
+In PowerShell:
+$env:GEMINI_API_KEY = "your_actual_key"
+node test-genkit.js
+
+In Command Prompt:
+set GEMINI_API_KEY=your_actual_key
+node test-genkit.js
+
+
+OPTION 3: Create and run PowerShell script
+---------------------------------
+1. Make sure you have a text editor like Notepad
+2. Open Notepad
+3. Copy and paste the following code:
+
+# PowerShell script to run Genkit test
+Write-Host "Running Genkit test..."
+node test-genkit.js
+
+4. Save the file as "run-test.ps1" in this folder
+5. In PowerShell, type:
+.\run-test.ps1
+
+
+TROUBLESHOOTING:
+---------------------------------
+If you get an error about execution policy, try:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\run-test.ps1
+
+If Node.js is not found, make sure it's installed from:
+https://nodejs.org/
