@@ -2,7 +2,7 @@
 
 # Genkit Integration Test
 
-This project demonstrates how to integrate and test the Genkit AI library.
+This project demonstrates how to integrate and test the Genkit AI library using version 1.5.
 
 ## Prerequisites
 
@@ -18,10 +18,15 @@ This project demonstrates how to integrate and test the Genkit AI library.
    ```
    npm install
    ```
+   
+   Or to specifically install the required Genkit 1.5 versions:
+   ```
+   npm install @genkit-ai/core@1.5.0 @genkit-ai/googleai@1.5.0
+   ```
 
 ## Configuration
 
-Set your Gemini API Key as an environment variable (recommended):
+Set your Gemini API Key as an environment variable (required for full functionality):
 
 ### Windows (Command Prompt)
 ```bash

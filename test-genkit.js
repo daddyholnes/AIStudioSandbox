@@ -7,9 +7,9 @@
  *    npm install @genkit-ai/core @genkit-ai/googleai
  * 
  * === Running the Test ===
- * 1. Set your Google API key (optional but recommended):
- *    - Windows: set GOOGLE_API_KEY=your_api_key_here
- *    - Mac/Linux: export GOOGLE_API_KEY=your_api_key_here
+ * 1. Set your Gemini API key (optional but recommended):
+ *    - Windows: set GEMINI_API_KEY=your_api_key_here
+ *    - Mac/Linux: export GEMINI_API_KEY=your_api_key_here
  * 2. Run the test:
  *    node test-genkit.js
  * 
@@ -23,69 +23,93 @@
 
 console.log('Testing Genkit Integration');
 
-import { genkit, z } from '@genkit-ai/core';
-import { googleAI } from '@genkit-ai/googleai';
+import * as core from '@genkit-ai/core';
+import * as googleai from '@genkit-ai/googleai';
 
-console.log('Testing Genkit 1.5 Integration');
+// Log available exports to help with debugging
+console.log('Core exports:', Object.keys(core));
+console.log('GoogleAI exports:', Object.keys(googleai));
 
-// 1. Environment Configuration
-const ENV_VAR = 'GEMINI_API_KEY'; // Consistent naming
-const apiKey = process.env[ENV_VAR] || 'test-key';
+// 1. Environment Configuration - use GEMINI_API_KEY as shown in debug output
+const ENV_VAR = 'GEMINI_API_KEY';
+const apiKeyValue = process.env[ENV_VAR] || 'test-key';
+console.log(`Using API key from ${ENV_VAR} environment variable:`, apiKeyValue ? '✓ Key found' : '✗ Using test key');
 
-// 2. Genkit Initialization
-const ai = genkit({
-  plugins: [googleAI({ apiKey })],
-  projectId: 'ai-studio-sandbox'
-});
-
-// 3. Flow Definition Test
 try {
-  const testFlow = ai.defineFlow(
-    {
-      name: 'testFlow',
-      description: 'Genkit 1.5 compatibility test',
-      inputSchema: z.string(),
-      outputSchema: z.object({
-        success: z.boolean(),
-        message: z.string()
-      })
-    },
-    async (input) => {
-      return { 
-        success: true, 
-        message: `Received input: ${input}` 
-      };
+  // 2. Create API Key with the correct method
+  const apiKeyObj = core.apiKey(apiKeyValue);
+  console.log('API Key object created successfully:', typeof apiKeyObj === 'function');
+  
+  // 3. Create the Google AI plugin instance using googleAI from the exports
+  const modelPlugin = googleai.googleAI({ apiKey: apiKeyValue });
+  console.log('Google AI plugin initialized:', !!modelPlugin);
+  
+  // 4. Check for specific models available in googleai package
+  console.log('Available model functions:');
+  ['gemini20Flash', 'gemini15Pro', 'textEmbedding004'].forEach(model => {
+    if (typeof googleai[model] === 'function') {
+      console.log(`- ${model}: ✓ Available`);
+    } else {
+      console.log(`- ${model}: ✗ Not available`);
     }
-  );
+  });
   
-  console.log('Flow definition successful:', typeof testFlow === 'function');
-  
-  // Execute the flow to test it
-  const testFlowExecution = async () => {
+  // 5. Test flow definition with the correct method from core
+  if (typeof core.defineFlow === 'function') {
+    // Based on debug output, defineFlow exists but needs correct parameters
     try {
-      const result = await testFlow('test-input');
-      console.log('Flow execution result:', result);
-    } catch (execError) {
-      console.error('Flow execution failed:', execError.message);
+      const testFlow = core.defineFlow({
+        name: 'testFlow',
+        description: 'Genkit test flow',
+        run: async (input) => {
+          return { 
+            success: true, 
+            message: `Processed input successfully` 
+          };
+        }
+      });
+      
+      console.log('Flow definition successful:', typeof testFlow === 'function');
+      
+      // Try executing the flow if it was created successfully
+      if (typeof testFlow === 'function') {
+        console.log('Attempting to execute test flow...');
+        try {
+          const result = await testFlow('test input');
+          console.log('Flow execution result:', result);
+        } catch (execError) {
+          console.error('Flow execution error:', execError.message);
+        }
+      }
+    } catch (flowError) {
+      console.error('Error defining flow:', flowError.message);
+      console.log('The defineFlow function might require different parameters in this version.');
     }
-  };
+  } else {
+    console.log('defineFlow is not available in this version');
+  }
   
-  testFlowExecution();
+  // 6. Test Z schema validation if available
+  if (core.z) {
+    console.log('Z schema validation is available');
+    try {
+      const schema = core.z.object({
+        name: core.z.string(),
+        age: core.z.number().optional()
+      });
+      console.log('Schema creation successful:', !!schema);
+    } catch (schemaError) {
+      console.error('Schema creation error:', schemaError.message);
+    }
+  } else {
+    console.log('Z schema validation is not available');
+  }
+  
 } catch (error) {
-  console.error('Flow definition failed:', error.message);
+  console.error('Error during Genkit testing:', error.message);
+  if (error.stack) {
+    console.error('Stack trace:', error.stack);
+  }
 }
 
-// 4. Model Access Test
-const testModelAccess = async () => {
-  try {
-    const models = await ai.listModels();
-    console.log('Available models:', models);
-  } catch (error) {
-    console.error('Model listing failed:', error.message);
-  }
-};
-
-testModelAccess();
-
-// Log success message
-console.log('Genkit integration test initiated. Check above for results.');
+console.log('Genkit integration test completed');

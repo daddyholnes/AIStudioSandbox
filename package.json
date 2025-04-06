@@ -6,8 +6,8 @@
   "main": "test-genkit.js",
   "scripts": {
     "test": "node test-genkit.js",
-    "start": "node test-genkit.js",
-    "update": "npm install @genkit-ai/core@1.5.0 @genkit-ai/googleai@1.5.0"
+    "debug": "node debug-genkit.js",
+    "start": "node test-genkit.js"
   },
   "dependencies": {
     "@genkit-ai/core": "^1.5.0",
