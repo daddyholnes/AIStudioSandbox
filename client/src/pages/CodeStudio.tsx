@@ -37,6 +37,14 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   const [files, setFiles] = useState<ProjectFileInfo[]>([]);
   const [roomConnected, setRoomConnected] = useState(false);
   const [roomName, setRoomName] = useState('default-room');
+  
+  // AI features state
+  const [aiChatMode, setAiChatMode] = useState<'chat' | 'history' | 'settings'>('chat');
+  const [webAccessEnabled, setWebAccessEnabled] = useState(false);
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  const [promptsEnabled, setPromptsEnabled] = useState(true);
+  const [genkitEnabled, setGenkitEnabled] = useState(true);
+  const [commandsEnabled, setCommandsEnabled] = useState(false);
 
   useEffect(() => {
     // Fetch project files on component mount
@@ -147,6 +155,39 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   const handleToggleSettingsPanel = () => {
     setActivePanel(activePanel === 'settings' ? '' : 'settings');
   };
+  
+  // Handle AI feature toggles
+  const handlePromptPanel = () => {
+    setActivePanel(activePanel === 'prompt' ? '' : 'prompt');
+    setPromptsEnabled(true);
+    console.log('Prompts selected');
+  };
+  
+  const handleHistoryPanel = () => {
+    setActivePanel(activePanel === 'ai' ? '' : 'ai');
+    setAiChatMode('history');
+    console.log('History selected');
+  };
+  
+  const handleWebAccessToggle = () => {
+    setWebAccessEnabled(!webAccessEnabled);
+    console.log('Web Access selected');
+  };
+  
+  const handleThinkingToggle = () => {
+    setThinkingEnabled(!thinkingEnabled);
+    console.log('Thinking selected');
+  };
+  
+  const handleGenkitToggle = () => {
+    setGenkitEnabled(!genkitEnabled);
+    console.log('Genkit selected');
+  };
+  
+  const handleCommandsToggle = () => {
+    setCommandsEnabled(!commandsEnabled);
+    console.log('Commands selected');
+  };
 
   const executeCode = async () => {
     // Add a loading message
@@ -209,6 +250,12 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
           onToggleProjectPanel={handleToggleProjectPanel}
           onToggleAIPanel={handleToggleAIPanel}
           onToggleSettingsPanel={handleToggleSettingsPanel}
+          onPromptPanel={handlePromptPanel}
+          onHistoryPanel={handleHistoryPanel}
+          onWebAccessToggle={handleWebAccessToggle}
+          onThinkingToggle={handleThinkingToggle}
+          onGenkitToggle={handleGenkitToggle}
+          onCommandsToggle={handleCommandsToggle}
           activePanel={activePanel}
         />
         
@@ -252,6 +299,19 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
                 <AIPanel 
                   roomConnected={roomConnected}
                   roomName={roomName}
+                  chatMode={aiChatMode}
+                  setChatMode={setAiChatMode}
+                  webAccessEnabled={webAccessEnabled}
+                  thinkingEnabled={thinkingEnabled}
+                  promptsEnabled={promptsEnabled}
+                  genkitEnabled={genkitEnabled}
+                  commandsEnabled={commandsEnabled}
+                  onWebAccessToggle={handleWebAccessToggle}
+                  onThinkingToggle={handleThinkingToggle}
+                  onPromptPanel={handlePromptPanel}
+                  onHistoryPanel={handleHistoryPanel}
+                  onGenkitToggle={handleGenkitToggle}
+                  onCommandsToggle={handleCommandsToggle}
                 />
               </ResizablePanel>
             </>

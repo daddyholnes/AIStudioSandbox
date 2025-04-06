@@ -23,6 +23,12 @@ interface SidebarProps {
   onToggleProjectPanel: () => void;
   onToggleAIPanel: () => void;
   onToggleSettingsPanel?: () => void;
+  onPromptPanel?: () => void;
+  onHistoryPanel?: () => void;
+  onWebAccessToggle?: () => void;
+  onThinkingToggle?: () => void;
+  onGenkitToggle?: () => void;
+  onCommandsToggle?: () => void;
   activePanel: string;
 }
 
@@ -30,6 +36,12 @@ const Sidebar = ({
   onToggleProjectPanel, 
   onToggleAIPanel, 
   onToggleSettingsPanel,
+  onPromptPanel,
+  onHistoryPanel,
+  onWebAccessToggle,
+  onThinkingToggle,
+  onGenkitToggle,
+  onCommandsToggle,
   activePanel 
 }: SidebarProps) => {
   const [expanded, setExpanded] = useState(false);
@@ -47,12 +59,12 @@ const Sidebar = ({
   // AI features
   const aiItems = [
     { id: 'ai', icon: MessageSquareText, label: 'Chat', onClick: onToggleAIPanel, active: activePanel === 'ai' },
-    { id: 'prompt', icon: ListPlus, label: 'Prompts', onClick: () => console.log('Prompts selected'), active: activePanel === 'prompt' },
-    { id: 'history', icon: History, label: 'History', onClick: () => console.log('History selected'), active: activePanel === 'history' },
-    { id: 'web', icon: Globe, label: 'Web Access', onClick: () => console.log('Web Access selected'), active: activePanel === 'web' },
-    { id: 'thinking', icon: BrainCircuit, label: 'Thinking', onClick: () => console.log('Thinking selected'), active: activePanel === 'thinking' },
-    { id: 'genkit', icon: Sparkles, label: 'Genkit', onClick: () => console.log('Genkit selected'), active: activePanel === 'genkit' },
-    { id: 'command', icon: CommandIcon, label: 'Commands', onClick: () => console.log('Commands selected'), active: activePanel === 'command' },
+    { id: 'prompt', icon: ListPlus, label: 'Prompts', onClick: onPromptPanel || (() => console.log('Prompts selected')), active: activePanel === 'prompt' },
+    { id: 'history', icon: History, label: 'History', onClick: onHistoryPanel || (() => console.log('History selected')), active: activePanel === 'history' },
+    { id: 'web', icon: Globe, label: 'Web Access', onClick: onWebAccessToggle || (() => console.log('Web Access selected')), active: activePanel === 'web' },
+    { id: 'thinking', icon: BrainCircuit, label: 'Thinking', onClick: onThinkingToggle || (() => console.log('Thinking selected')), active: activePanel === 'thinking' },
+    { id: 'genkit', icon: Sparkles, label: 'Genkit', onClick: onGenkitToggle || (() => console.log('Genkit selected')), active: activePanel === 'genkit' },
+    { id: 'command', icon: CommandIcon, label: 'Commands', onClick: onCommandsToggle || (() => console.log('Commands selected')), active: activePanel === 'command' },
   ];
 
   // System items at the bottom

@@ -18,7 +18,11 @@ import {
   ChevronRight,
   Maximize2,
   X,
-  ImagePlus
+  ImagePlus,
+  Globe,
+  BrainCircuit,
+  ListPlus,
+  Command as CommandIcon
 } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -49,20 +53,56 @@ interface CodeBlock {
 interface AIPanelProps {
   roomConnected: boolean;
   roomName: string;
+  chatMode?: 'chat' | 'history' | 'settings';
+  setChatMode?: (mode: 'chat' | 'history' | 'settings') => void;
+  webAccessEnabled?: boolean;
+  thinkingEnabled?: boolean;
+  promptsEnabled?: boolean;
+  genkitEnabled?: boolean;
+  commandsEnabled?: boolean;
+  onWebAccessToggle?: () => void;
+  onThinkingToggle?: () => void;
+  onPromptPanel?: () => void;
+  onHistoryPanel?: () => void;
+  onGenkitToggle?: () => void;
+  onCommandsToggle?: () => void;
 }
 
-const AIPanel = ({ roomConnected, roomName }: AIPanelProps) => {
+const AIPanel = ({ 
+  roomConnected, 
+  roomName,
+  chatMode: externalChatMode,
+  setChatMode: setExternalChatMode,
+  webAccessEnabled,
+  thinkingEnabled,
+  promptsEnabled,
+  genkitEnabled,
+  commandsEnabled,
+  onWebAccessToggle,
+  onThinkingToggle,
+  onPromptPanel,
+  onHistoryPanel,
+  onGenkitToggle,
+  onCommandsToggle
+}: AIPanelProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [activeSession, setActiveSession] = useState('default');
   const [mode, setMode] = useState<'chat' | 'code' | 'image'>('chat');
-  const [chatMode, setChatMode] = useState<'chat' | 'history' | 'settings'>('chat');
+  const [chatMode, setChatMode] = useState<'chat' | 'history' | 'settings'>(externalChatMode || 'chat');
   const [isStandalone, setIsStandalone] = useState(false);
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
+  // Sync chat mode with external state if provided
+  useEffect(() => {
+    if (externalChatMode) {
+      setChatMode(externalChatMode);
+    }
+  }, [externalChatMode]);
   
   // Add welcome message on mount
   useEffect(() => {
@@ -403,7 +443,10 @@ const AIPanel = ({ roomConnected, roomName }: AIPanelProps) => {
                     variant={chatMode === 'chat' ? 'secondary' : 'ghost'} 
                     size="sm" 
                     className="h-7 px-2.5 text-xs"
-                    onClick={() => setChatMode('chat')}
+                    onClick={() => {
+                      setChatMode('chat');
+                      if (setExternalChatMode) setExternalChatMode('chat');
+                    }}
                   >
                     Chat
                   </Button>
@@ -411,7 +454,10 @@ const AIPanel = ({ roomConnected, roomName }: AIPanelProps) => {
                     variant={chatMode === 'history' ? 'secondary' : 'ghost'} 
                     size="sm" 
                     className="h-7 px-2.5 text-xs"
-                    onClick={() => setChatMode('history')}
+                    onClick={() => {
+                      setChatMode('history');
+                      if (setExternalChatMode) setExternalChatMode('history');
+                    }}
                   >
                     History
                   </Button>
@@ -419,7 +465,10 @@ const AIPanel = ({ roomConnected, roomName }: AIPanelProps) => {
                     variant={chatMode === 'settings' ? 'secondary' : 'ghost'} 
                     size="sm" 
                     className="h-7 px-2.5 text-xs"
-                    onClick={() => setChatMode('settings')}
+                    onClick={() => {
+                      setChatMode('settings');
+                      if (setExternalChatMode) setExternalChatMode('settings');
+                    }}
                   >
                     <Settings className="h-3 w-3 mr-1" />
                     Settings
@@ -528,6 +577,86 @@ const AIPanel = ({ roomConnected, roomName }: AIPanelProps) => {
                         <span>1024</span>
                         <span>4096</span>
                       </div>
+                    </div>
+                  </div>
+                  
+                  <Separator className="my-4" />
+                  
+                  <h3 className="text-sm font-medium mb-3">AI Features</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs">Web Access</span>
+                      </div>
+                      <Button 
+                        variant={webAccessEnabled ? "default" : "outline"} 
+                        size="sm" 
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onWebAccessToggle && onWebAccessToggle()}
+                      >
+                        {webAccessEnabled ? "Enabled" : "Disabled"}
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs">Thinking</span>
+                      </div>
+                      <Button 
+                        variant={thinkingEnabled ? "default" : "outline"} 
+                        size="sm" 
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onThinkingToggle && onThinkingToggle()}
+                      >
+                        {thinkingEnabled ? "Enabled" : "Disabled"}
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <ListPlus className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs">Prompts</span>
+                      </div>
+                      <Button 
+                        variant={promptsEnabled ? "default" : "outline"} 
+                        size="sm" 
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onPromptPanel && onPromptPanel()}
+                      >
+                        {promptsEnabled ? "Enabled" : "Disabled"}
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Sparkles className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs">Genkit</span>
+                      </div>
+                      <Button 
+                        variant={genkitEnabled ? "default" : "outline"} 
+                        size="sm" 
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onGenkitToggle && onGenkitToggle()}
+                      >
+                        {genkitEnabled ? "Enabled" : "Disabled"}
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <CommandIcon className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs">Commands</span>
+                      </div>
+                      <Button 
+                        variant={commandsEnabled ? "default" : "outline"} 
+                        size="sm" 
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onCommandsToggle && onCommandsToggle()}
+                      >
+                        {commandsEnabled ? "Enabled" : "Disabled"}
+                      </Button>
                     </div>
                   </div>
                 </div>
