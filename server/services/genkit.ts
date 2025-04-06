@@ -1,205 +1,122 @@
-import { defineFlow } from '@genkit-ai/core';
-import { googleAI, gemini } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { AISession } from '../../shared/schema';
-import config from '../../genkit.config';
+import ai from '../../genkit.config';
 
 // Use the configuration from genkit.config.ts
-export const ai = config;
+export const genkitAI = ai;
+
+// Define input/output schemas
+const CodeRequestSchema = z.object({
+  prompt: z.string(),
+  context: z.string().optional(),
+  language: z.string().optional()
+});
+
+const ChatRequestSchema = z.object({
+  message: z.string(),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string()
+  })).optional(),
+  enableReasoning: z.boolean().optional()
+});
+
+const ImageRequestSchema = z.object({
+  prompt: z.string(),
+  style: z.string().optional(),
+  size: z.enum(['512x512', '1024x1024', '1024x1792', '1792x1024']).optional()
+});
 
 // Code Assistant Flow for generating and explaining code
-export const codeAssistantFlow = defineFlow({
-  name: 'codeAssistant',
-  inputSchema: z.object({
-    userPrompt: z.string(),
-    currentCode: z.string().optional(),
-    language: z.string().optional(),
-  }),
-  outputSchema: z.object({
-    generatedCode: z.string(),
-    explanation: z.string()
-  }),
-  steps: {
-    analyze: async ({ userPrompt, currentCode, language }) => {
-      const prompt = `You are an expert programmer. Analyze this coding request carefully:
-      
-User Request: ${userPrompt}
+export const codeAssistantFlow = ai.defineFlow({
+  name: 'codeAssistFlow',
+  inputSchema: CodeRequestSchema,
+  outputSchema: z.string()
+}, async ({ prompt, context, language }) => {
+  const codePrompt = `Generate code for: ${prompt}
+${context ? `\nContext: ${context}` : ''}
+${language ? `\nLanguage: ${language}` : '\nLanguage: TypeScript'}
 
-${currentCode ? `Current Code: ${currentCode}` : ''}
+Write high-quality, well-commented code that follows best practices.`;
 
-${language ? `Programming Language: ${language}` : ''}
-
-Provide detailed analysis on what needs to be done.`;
-      
-      return ai.generate({
-        model: 'gemini-2.0-pro-exp',
-        prompt
-      });
-    },
-    generate: async ({ userPrompt, currentCode, language }, { analyze }) => {
-      const prompt = `Based on the analysis and user request, generate high-quality code that meets these requirements:
-      
-User Request: ${userPrompt}
-
-${currentCode ? `Current Code Context: ${currentCode}` : ''}
-
-${language ? `Programming Language: ${language}` : 'Use TypeScript if language not specified.'}
-
-Analysis: ${analyze}
-
-Generate code that is:
-1. Well-structured and following best practices
-2. Properly commented
-3. Efficient and optimized
-4. Error-handled appropriately`;
-      
-      const codeResult = await ai.generate({
-        model: 'gemini-2.0-pro-exp',
-        prompt
-      });
-      
-      // Generate explanation
-      const explanationPrompt = `Explain the following code in a clear, step-by-step manner:
-      
-${codeResult}
-
-Provide an explanation that covers:
-1. The purpose of each section
-2. Any patterns or techniques used
-3. Why certain decisions were made
-4. How to use or integrate this code`;
-      
-      const explanation = await ai.generate({
-        model: 'gemini-2.0-pro-exp',
-        prompt: explanationPrompt
-      });
-      
-      return {
-        generatedCode: codeResult,
-        explanation
-      };
-    }
-  }
+  const { text } = await ai.generate({
+    model: 'gemini-2.0-flash',
+    prompt: codePrompt
+  });
+  
+  return text;
 });
 
 // Chat Flow for interactive conversations with access to chat history
-export const chatAssistantFlow = defineFlow({
-  name: 'chatAssistant',
-  inputSchema: z.object({
-    userMessage: z.string(),
-    chatHistory: z.array(z.object({
-      role: z.enum(['user', 'assistant']),
-      content: z.string()
-    })).optional(),
-    enableWebSearch: z.boolean().optional(),
-    enableReasoning: z.boolean().optional(),
-  }),
-  outputSchema: z.object({
-    response: z.string(),
-    reasoning: z.string().optional()
-  }),
-  steps: {
-    preProcess: async ({ userMessage, chatHistory, enableReasoning }) => {
-      // Format chat history into a string
-      const historyText = chatHistory ? chatHistory.map(msg => 
-        `${msg.role.toUpperCase()}: ${msg.content}`
-      ).join('\n\n') : '';
-      
-      return {
-        formattedHistory: historyText,
-        needsReasoning: enableReasoning || false
-      };
-    },
-    reason: async ({ userMessage }, { preProcess }) => {
-      if (!preProcess.needsReasoning) {
-        return "No reasoning requested";
-      }
-      
-      const reasoningPrompt = `Before responding to the user, think step-by-step about how to answer this question:
-      
-USER QUESTION: ${userMessage}
-
-${preProcess.formattedHistory ? `CONVERSATION HISTORY:\n${preProcess.formattedHistory}` : ''}
-
-Think carefully about:
-1. What information is being requested
-2. What background knowledge is relevant
-3. What assumptions need to be validated
-4. What would be the most helpful and accurate response`;
-      
-      return ai.generate({
-        model: 'gemini-2.5-pro-001',
-        prompt: reasoningPrompt
-      });
-    },
-    respond: async ({ userMessage }, { preProcess, reason }) => {
-      const responsePrompt = `You are a helpful, accurate, and friendly AI assistant.
-      
-${preProcess.formattedHistory ? `CONVERSATION HISTORY:\n${preProcess.formattedHistory}\n\n` : ''}
-
-${reason !== "No reasoning requested" ? `REASONING (not visible to user):\n${reason}\n\n` : ''}
-
-USER: ${userMessage}
-
-Respond in a helpful, concise, and friendly manner. If you don't know, say so.`;
-      
-      const response = await ai.generate({
-        model: 'gemini-2.5-pro-001',
-        prompt: responsePrompt
-      });
-      
-      return {
-        response,
-        reasoning: reason !== "No reasoning requested" ? reason : undefined
-      };
-    }
+export const chatAssistantFlow = ai.defineFlow({
+  name: 'chatAssistFlow',
+  inputSchema: ChatRequestSchema,
+  outputSchema: z.string()
+}, async ({ message, history, enableReasoning }) => {
+  // Format chat history
+  const historyText = history 
+    ? history.map(msg => `${msg.role.toUpperCase()}: ${msg.content}`).join('\n\n') 
+    : '';
+  
+  // Create reasoning if requested
+  let reasoning = '';
+  if (enableReasoning) {
+    const reasoningPrompt = `Before responding, think step-by-step:
+${historyText ? `\nCONVERSATION HISTORY:\n${historyText}\n` : ''}
+\nUSER QUESTION: ${message}
+\nAnalyze what's being asked and how to best respond.`;
+    
+    const { text: reasoningText } = await ai.generate({
+      model: 'gemini-2.0-pro',
+      prompt: reasoningPrompt
+    });
+    
+    reasoning = `\nREASONING (not visible to user):\n${reasoningText}`;
   }
+  
+  // Generate response
+  const responsePrompt = `You are a helpful, accurate AI assistant.
+${historyText ? `\nCONVERSATION HISTORY:\n${historyText}` : ''}
+${reasoning}
+\nUSER: ${message}
+\nRespond helpfully and concisely.`;
+  
+  const { text } = await ai.generate({
+    model: 'gemini-2.0-pro',
+    prompt: responsePrompt
+  });
+  
+  return text;
 });
 
 // Image Generation Flow
-export const imageGenerationFlow = defineFlow({
-  name: 'imageGenerator',
-  inputSchema: z.object({
-    prompt: z.string(),
-    style: z.string().optional(),
-    size: z.string().optional(),
-  }),
+export const imageGenerationFlow = ai.defineFlow({
+  name: 'imageGenerateFlow',
+  inputSchema: ImageRequestSchema,
   outputSchema: z.object({
     imageUrl: z.string(),
     enhancedPrompt: z.string()
-  }),
-  steps: {
-    enhancePrompt: async ({ prompt, style }) => {
-      const enhancementPrompt = `Enhance this image generation prompt to create a more detailed, vivid, and descriptive version:
-      
-ORIGINAL PROMPT: ${prompt}
-
-${style ? `STYLE REFERENCE: ${style}` : ''}
-
-Your enhancement should:
-1. Add descriptive details about lighting, perspective, mood, etc.
-2. Include artistic references if relevant
-3. Specify important elements clearly
-4. Maintain the original intent of the prompt`;
-      
-      return ai.generate({
-        model: 'gemini-2.0-pro-exp',
-        prompt: enhancementPrompt
-      });
-    },
-    generateImage: async ({ size }, { enhancePrompt }) => {
-      // This is a placeholder for actual image generation API call
-      // In a real implementation, you would call a service like Imagen
-      
-      // For demonstration purposes:
-      const mockImageUrl = `https://placeholder-image.com/generated?text=${encodeURIComponent(enhancePrompt.substring(0, 50))}`;
-      
-      return {
-        imageUrl: mockImageUrl,
-        enhancedPrompt: enhancePrompt
-      };
-    }
-  }
+  })
+}, async ({ prompt, style, size = '1024x1024' }) => {
+  // Enhance the prompt
+  const enhancementPrompt = `Enhance this image generation prompt with vivid details:
+PROMPT: ${prompt}
+${style ? `\nSTYLE: ${style}` : ''}
+\nAdd details about lighting, composition, and mood while keeping the original intent.`;
+  
+  const { text: enhancedPrompt } = await ai.generate({
+    model: 'gemini-2.0-pro',
+    prompt: enhancementPrompt
+  });
+  
+  // In a real implementation, this would call an image generation API
+  // For demonstration, we're returning a placeholder
+  const imageUrl = `https://placeholder-image.com/generated?text=${encodeURIComponent(prompt.substring(0, 50))}&size=${size}`;
+  
+  return {
+    imageUrl,
+    enhancedPrompt
+  };
 });
 
 // Genkit handler for AI service integration
@@ -210,18 +127,18 @@ export const genkitHandler = {
   async processMessage(message: string, session?: AISession): Promise<string> {
     try {
       // Convert session history to the format expected by the chat flow
-      const chatHistory = session?.history.map(msg => ({
+      const history = session?.history.map(msg => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content
       })) || [];
       
       const result = await chatAssistantFlow({
-        userMessage: message,
-        chatHistory,
-        enableReasoning: false
+        message,
+        history,
+        enableReasoning: true
       });
       
-      return result.response;
+      return result;
     } catch (error) {
       console.error('Error in Genkit processMessage:', error);
       return "I encountered an error processing your message. Please try again.";
@@ -234,11 +151,12 @@ export const genkitHandler = {
   async generateCode(prompt: string, language: string = 'typescript'): Promise<string> {
     try {
       const result = await codeAssistantFlow({
-        userPrompt: prompt,
-        language
+        prompt,
+        language,
+        context: ''
       });
       
-      return `${result.generatedCode}\n\n/*\nExplanation:\n${result.explanation}\n*/`;
+      return result;
     } catch (error) {
       console.error('Error in Genkit generateCode:', error);
       return "I encountered an error generating code. Please try again.";
@@ -250,24 +168,21 @@ export const genkitHandler = {
    */
   async explainCode(code: string): Promise<string> {
     try {
-      const prompt = `Explain the following code in detail:
-      
+      const { text } = await ai.generate({
+        model: 'gemini-2.0-pro',
+        prompt: `Explain this code in detail:
 \`\`\`
 ${code}
 \`\`\`
 
-Provide a comprehensive explanation including:
-1. What the code does overall
-2. A breakdown of each significant part
-3. Any design patterns or techniques used
-4. Potential issues or optimization opportunities`;
-      
-      const explanation = await ai.generate({
-        model: 'gemini-2.0-pro-exp',
-        prompt
+Include:
+1. Overall purpose
+2. Function breakdowns
+3. Design patterns used
+4. Potential improvements`
       });
       
-      return explanation;
+      return text;
     } catch (error) {
       console.error('Error in Genkit explainCode:', error);
       return "I encountered an error explaining the code. Please try again.";
@@ -283,22 +198,15 @@ Provide a comprehensive explanation including:
         `${msg.role.toUpperCase()}: ${msg.content}`
       ).join('\n\n');
       
-      const prompt = `Summarize the key points of this conversation:
-      
+      const { text } = await ai.generate({
+        model: 'gemini-2.0-pro',
+        prompt: `Summarize this conversation concisely:
 ${conversationText}
 
-Create a concise summary that:
-1. Captures the main topics discussed
-2. Highlights any decisions or conclusions reached
-3. Notes any outstanding questions or action items
-4. Is clear and well-structured`;
-      
-      const summary = await ai.generate({
-        model: 'gemini-2.0-pro-exp',
-        prompt
+Include main topics, decisions, and any open questions.`
       });
       
-      return summary;
+      return text;
     } catch (error) {
       console.error('Error in Genkit generateSummary:', error);
       return "I encountered an error generating a summary. Please try again.";

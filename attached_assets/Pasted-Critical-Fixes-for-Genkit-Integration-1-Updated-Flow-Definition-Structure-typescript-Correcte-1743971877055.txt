@@ -1,0 +1,113 @@
+Critical Fixes for Genkit Integration
+1. Updated Flow Definition Structure
+typescript
+// Corrected flow definition using Genkit 1.x syntax
+import { genkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
+import { z } from 'zod';
+
+// Initialize Genkit instance first
+const ai = genkit({
+  plugins: [googleAI({
+    apiKey: process.env.GEMINI_API_KEY,
+    projectId: process.env.GOOGLE_CLOUD_PROJECT
+  })]
+});
+
+// Define schema first
+const CodeRequestSchema = z.object({
+  prompt: z.string(),
+  context: z.string().optional()
+});
+
+// Define flow on the Genkit instance
+export const codeAssistFlow = ai.defineFlow({
+  name: 'codeAssistFlow',
+  inputSchema: CodeRequestSchema,
+  outputSchema: z.string()
+}, async ({ prompt, context }) => {
+  const { text } = await ai.generate({
+    model: 'gemini-2.0-flash',
+    prompt: `Generate code for: ${prompt}\nContext: ${context || 'none'}`
+  });
+  return text;
+});
+2. Environment Configuration
+bash
+# Required environment variables
+export GEMINI_API_KEY="your_actual_key"
+export GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account.json"
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+3. Flow Initialization & Server Setup
+typescript
+// server/genkit-init.ts
+import { codeAssistFlow } from '../flows/code-assist';
+
+// Start flow server explicitly
+ai.startFlowServer({
+  flows: [codeAssistFlow],
+  port: process.env.PORT || 3000
+});
+Key Changes from Previous Implementation
+Issue	Old Approach	New Solution
+Flow Definition	Global defineFlow	Instance-bound ai.defineFlow
+Configuration	configureGenkit	Genkit constructor
+Schema Validation	Optional	Required via Zod
+Server Setup	Implicit	Explicit startFlowServer
+Verification Steps
+Check Genkit Version
+
+bash
+npm list @genkit-ai/core
+# Should show 1.4.0 or later
+Test Flow Locally
+
+bash
+genkit start -- ts-node server/genkit-init.ts
+Validate Input Schema
+
+typescript
+// Example test case
+await codeAssistFlow.run({
+  prompt: "Create React counter component",
+  context: "Use TypeScript and hooks"
+});
+Error Resolution Guide
+Problem
+TypeError: Cannot read property 'name' of undefined
+
+Solution
+Ensure flow definition uses the new object syntax:
+
+typescript
+// ❌ Old
+ai.defineFlow(name, config, handler)
+
+// ✅ New
+ai.defineFlow({ name, ...config }, handler)
+Problem
+ZodError: Invalid input
+
+Solution
+Add explicit schema validation:
+
+typescript
+// Add to flow definition
+inputSchema: z.object({
+  prompt: z.string().min(10)
+}),
+outputSchema: z.string()
+Problem
+AuthenticationError: Missing API key
+
+Solution
+Configure Google AI plugin properly:
+
+typescript
+genkit({
+  plugins: [googleAI({
+    apiKey: process.env.GEMINI_API_KEY,
+    projectId: process.env.GCLOUD_PROJECT
+  })]
+})
+This implementation maintains compatibility with your existing UI components while adhering to Genkit 1.x requirements. The flows will now work with both Gemini API and Vertex AI using your existing service account credentials.

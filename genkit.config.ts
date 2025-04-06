@@ -1,10 +1,12 @@
-import { apiKey } from '@genkit-ai/core';
+import { defineFlow } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
+import { apiKey } from '@genkit-ai/core';
 
-// Create a Genkit instance with Google AI plugin
+// Create a Genkit context with Google AI plugin
 const config = apiKey({
-  plugins: [googleAI()],
-  projectId: process.env.GCLOUD_PROJECT || 'ai-studio-sandbox'  // Auto-detected from credentials
+  plugins: [googleAI({
+    apiKey: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY
+  })]
 });
 
 export default config;
