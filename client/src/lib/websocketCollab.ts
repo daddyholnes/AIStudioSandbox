@@ -5,6 +5,7 @@
 import { EventEmitter } from 'events';
 import { z } from 'zod';
 import { FeatureState } from '../types';
+import { useState, useEffect, useCallback } from 'react';
 
 type WebSocketEvent = 
   | 'connect'
@@ -623,7 +624,7 @@ class WebSocketCollab extends EventEmitter {
 // Create a singleton instance
 export const webSocketCollab = new WebSocketCollab();
 
-class WebSocketCollabService {
+export class WebSocketCollabService {
   private socket: WebSocket | null = null;
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
@@ -634,7 +635,7 @@ class WebSocketCollabService {
   
   connect() {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${protocol}://${window.location.host}/ws`;
+    const wsUrl = `${protocol}://${window.location.hostname}:3001/ws/collab`;
     
     this.socket = new WebSocket(wsUrl);
     
@@ -646,10 +647,7 @@ class WebSocketCollabService {
     this.socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'featureUpdate') {
-          // Handle feature updates from server
-          this.handleFeatureUpdate(data.features);
-        }
+        this.handleMessage(data);
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
       }
@@ -658,7 +656,7 @@ class WebSocketCollabService {
     this.socket.onclose = () => {
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
         this.reconnectAttempts++;
-        console.log(`WebSocket connection closed. Reconnecting attempt ${this.reconnectAttempts}...`);
+        console.log(`WebSocket connection closed. Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
         setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);
       } else {
         console.error('WebSocket connection closed permanently after max reconnect attempts');
@@ -670,22 +668,17 @@ class WebSocketCollabService {
     };
   }
   
-  sendFeatureUpdate(feature: keyof FeatureState, value: boolean) {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({
-        type: 'featureUpdate',
-        feature,
-        value
-      }));
-    }
+  private handleMessage(data: any) {
+    const event = new CustomEvent('ws-message', { detail: data });
+    window.dispatchEvent(event);
   }
   
-  private handleFeatureUpdate(features: Partial<FeatureState>) {
-    // This should be connected to your app state
-    // Example implementation would dispatch to a store or call a callback
-    window.dispatchEvent(new CustomEvent('featureUpdate', { 
-      detail: { features } 
-    }));
+  send(data: any) {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
+    } else {
+      console.warn('Cannot send message - WebSocket not connected');
+    }
   }
   
   disconnect() {
@@ -696,5 +689,6 @@ class WebSocketCollabService {
   }
 }
 
+// Create singleton instance
 export const websocketCollab = new WebSocketCollabService();
 export default websocketCollab;

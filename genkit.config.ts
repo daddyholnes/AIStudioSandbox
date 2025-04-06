@@ -1,18 +1,24 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as core from '@genkit-ai/core';
+import * as googleai from '@genkit-ai/googleai';
 
-// Initialize Google Generative AI client directly
-const googleAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '');
+// Get API Key from environment
+const apiKey = process.env.GEMINI_API_KEY || '';
 
-// Define model constants for use throughout the app
-export const PRODUCTION_MODEL = 'gemini-1.5-flash';  // Using 1.5 versions as they're currently available
-export const ADVANCED_MODEL = 'gemini-1.5-pro'; 
-export const EXPERIMENTAL_MODEL = 'gemini-1.5-pro';
-export const VISION_MODEL = 'gemini-1.5-pro-vision';
-
-// Export helper for managing models
-export function getModelInstance(modelName = PRODUCTION_MODEL) {
-  return googleAI.getGenerativeModel({ model: modelName });
+if (!apiKey) {
+  console.warn('Warning: GEMINI_API_KEY environment variable is not set');
 }
 
-// Export the client for other services
-export default googleAI;
+// Create API Key object using available method
+const apiKeyObj = core.apiKey(apiKey);
+
+// Create the Google AI plugin
+const googleAIPlugin = googleai.googleAI({ apiKey });
+
+// Export the configuration with proper error handling
+export { core, googleAIPlugin, apiKeyObj };
+
+export default {
+  z: core.z,
+  defineFlow: core.defineFlow,
+  googleAI: googleAIPlugin
+};
