@@ -4,11 +4,13 @@
   "type": "module",
   "description": "AI Studio Sandbox for testing and development",
   "scripts": {
-    "start": "tsx server/index.ts",
-    "dev": "tsx watch server/index.ts",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "tsx watch server/index.ts",
+    "client": "vite",
+    "build": "tsc && vite build",
+    "start": "node server/index.ts",
     "websocket": "tsx server/websocket.ts",
-    "test": "node test-genkit.js",
-    "client": "vite"
+    "test": "node test-genkit.js"
   },
   "dependencies": {
     "@genkit-ai/core": "^1.5.0",
@@ -16,7 +18,8 @@
     "@xterm/addon-fit": "^0.8.0",
     "@xterm/xterm": "^5.3.0",
     "express": "^4.18.2",
-    "ws": "^8.14.2"
+    "ws": "^8.14.2",
+    "@esbuild/win32-x64": "0.19.2"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

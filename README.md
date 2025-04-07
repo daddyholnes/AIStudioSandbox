@@ -103,6 +103,48 @@ If you encounter any issues:
 2. Run `npm install @genkit-ai/core @genkit-ai/googleai` manually
 3. Check the console output for any specific error messages
 
+# Development Environment Setup
+
+## Fixing Dependency Issues
+
+This project requires specific dependencies for the Windows environment. Follow these steps to resolve common dependency issues:
+
+1. Run the provided fix script:
+```powershell
+.\fix-dependencies.ps1
+```
+
+2. Or manually perform these steps:
+   - Clean existing installation:
+     ```powershell
+     rm -r node_modules
+     rm package-lock.json
+     ```
+   - Install specific esbuild for Windows:
+     ```powershell
+     npm install --save-exact @esbuild/win32-x64@0.19.2
+     ```
+   - Install correct xterm packages:
+     ```powershell
+     npm install @xterm/xterm@5.3.0 @xterm/addon-fit@0.8.0
+     ```
+   - Install required global tools:
+     ```powershell
+     npm install -g yarn
+     npm install -g concurrently
+     ```
+   - Reinstall dependencies with Yarn:
+     ```powershell
+     yarn install --ignore-optional
+     ```
+
+3. Start the application:
+   ```powershell
+   yarn dev
+   ```
+
+This setup resolves the platform mismatch errors while maintaining real-time TypeScript execution capabilities.
+
 ## Additional Resources
 
 - [Genkit Documentation](https://genkit.ai/docs)
