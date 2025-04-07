@@ -4,11 +4,11 @@
   "type": "module",
   "description": "AI Studio Sandbox for testing and development",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "node server/index.js",
-    "client": "vite",
+    "start": "tsx server/index.ts",
+    "dev": "tsx watch server/index.ts",
+    "websocket": "tsx server/websocket.ts",
     "test": "node test-genkit.js",
-    "start": "node server/index.js"
+    "client": "vite"
   },
   "dependencies": {
     "@genkit-ai/core": "^1.5.0",
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "tsx": "^4.7.1",
     "vite": "^5.0.0"
   },
   "engines": {

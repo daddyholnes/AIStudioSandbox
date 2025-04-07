@@ -19,6 +19,20 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host "Node.js detected: $nodeVersion" -ForegroundColor Green
 }
 
+# Check tsx installation
+try {
+    $npxTsxExists = npx tsx --version
+    Write-Host "tsx detected: $npxTsxExists" -ForegroundColor Green
+} catch {
+    Write-Host "tsx not found. Installing..." -ForegroundColor Yellow
+    npm install --save-dev tsx
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Failed to install tsx. Please run 'npm install --save-dev tsx' manually." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "tsx installed successfully" -ForegroundColor Green
+}
+
 # Check environment variable
 if (-not $env:GEMINI_API_KEY) {
     Write-Host "GEMINI_API_KEY environment variable not set!" -ForegroundColor Yellow
@@ -38,9 +52,9 @@ if (-not $env:GEMINI_API_KEY) {
 # Start servers if not running
 if (-not (Test-Port 3001)) {
     Write-Host "WebSocket server not running. Starting server..." -ForegroundColor Yellow
-    Start-Process -NoNewWindow -FilePath "node" -ArgumentList "server/websocket.ts"
+    Start-Process -NoNewWindow -FilePath "npx" -ArgumentList "tsx server/websocket.ts"
     Write-Host "Waiting for WebSocket server to start..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 3
     
     if (Test-Port 3001) {
         Write-Host "WebSocket server started successfully!" -ForegroundColor Green
@@ -53,7 +67,7 @@ if (-not (Test-Port 3001)) {
 
 if (-not (Test-Port 3000)) {
     Write-Host "API server not running. Starting server..." -ForegroundColor Yellow
-    Start-Process -NoNewWindow -FilePath "npm" -ArgumentList "run start"
+    Start-Process -NoNewWindow -FilePath "npx" -ArgumentList "tsx server/index.ts"
     Write-Host "Waiting for API server to start..." -ForegroundColor Yellow
     Start-Sleep -Seconds 5
     
