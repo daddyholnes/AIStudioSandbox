@@ -3,31 +3,26 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  root: './client', // Point to directory containing index.html
   server: {
-    host: '0.0.0.0', // Explicitly bind to all available network interfaces
+    host: true, // Simpler way to bind to all interfaces
     port: 5173,
     strictPort: true,
-    cors: true, // Enable CORS for all origins
-    hmr: {
-      protocol: 'ws',
-      host: '0.0.0.0',
-      port: 5173,
-    },
+    // cors: true, // Removed as per suggestion
+    // hmr: { ... }, // Removed as per suggestion
     proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false,
-      },
+      '/api': 'http://localhost:3000', // Simplified proxy config
       // Add WebSocket proxy configuration
       '/ws': {
         target: 'ws://localhost:3001', // Target the WebSocket server port
         ws: true,                      // Enable WebSocket proxying
-        changeOrigin: true             // Recommended for virtual hosts
+        // changeOrigin: true // Removed as per suggestion
       }
     },
-    watch: {
-      usePolling: true, // Helps with file watching in some environments
-    }
+    // watch: { ... } // Removed as per suggestion
+  },
+  build: {
+    outDir: '../dist', // Avoid public/ conflicts
+    emptyOutDir: true
   }
 });
