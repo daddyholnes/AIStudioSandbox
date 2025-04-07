@@ -1,5 +1,5 @@
 import { AISession } from '../../shared/schema';
-// Corrected imports to use exported constants
+// Corrected imports to use exported constants and default export
 import googleAI, { 
   PRODUCTION_MODEL,
   EXPERIMENTAL_MODEL, // Assuming EXPERIMENTAL_MODEL might be used elsewhere or later

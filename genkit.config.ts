@@ -14,11 +14,23 @@ const apiKeyObj = core.apiKey(apiKey);
 // Create the Google AI plugin
 const googleAIPlugin = googleai.googleAI({ apiKey });
 
+// Explicit named exports
+export const PRODUCTION_MODEL = 'gemini-1.5-pro';
+export const EXPERIMENTAL_MODEL = 'gemini-1.5-flash';
+export const VISION_MODEL = 'gemini-1.5-pro-vision';
+
+// Model instance factory
+export const getModelInstance = (modelId: string) => {
+  return googleAIPlugin.getModel(modelId);
+};
+
 // Export the configuration with proper error handling
 export { core, googleAIPlugin, apiKeyObj };
 
-export default {
-  z: core.z,
-  defineFlow: core.defineFlow,
-  googleAI: googleAIPlugin
-};
+// Default export for Genkit configuration
+export default core.genkit({
+  plugins: [
+    googleAIPlugin
+  ],
+  enableTracing: true
+});
