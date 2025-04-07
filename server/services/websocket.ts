@@ -4,8 +4,8 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { v4 as uuidv4 } from 'uuid';
-import { log } from '../vite';
-import { z } from 'zod';
+import { log } from '../vite.js';
+import * as z from 'zod';
 
 // Participant in a room
 interface Participant {
@@ -127,7 +127,7 @@ export class WebSocketRoomManager {
       const url = new URL(request.url || '', 'http://localhost');
       
       // Only handle our specific path, now supporting sessionId parameter
-      if (url.pathname === '/ws/collab') {
+if (url.pathname === '/ws') {
         // Extract the sessionId if present (not yet used but captured for future use)
         const sessionId = url.searchParams.get('sessionId') || 'default';
         
