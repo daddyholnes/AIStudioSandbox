@@ -1,5 +1,5 @@
-const WebSocket = require('ws');
-const readline = require('readline');
+import WebSocket from 'ws';
+import readline from 'readline';
 
 const rl = readline.createInterface({
   input: process.stdin,

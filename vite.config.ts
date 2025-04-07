@@ -4,15 +4,29 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true, // Bind to all network interfaces
-    port: 5173, // Ensure the correct port
-    strictPort: true, // Fail if port is unavailable
+    host: '0.0.0.0', // Explicitly bind to all available network interfaces
+    port: 5173,
+    strictPort: true,
+    cors: true, // Enable CORS for all origins
+    hmr: {
+      protocol: 'ws',
+      host: '0.0.0.0',
+      port: 5173,
+    },
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
       '/ws': {
         target: 'ws://localhost:3001',
-        ws: true
+        ws: true,
+        changeOrigin: true,
       }
+    },
+    watch: {
+      usePolling: true, // Helps with file watching in some environments
     }
   }
 });
