@@ -30,8 +30,9 @@ class WebSocketClient {
   
   _buildDefaultUrl() {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const host = window.location.hostname;
-    return `${protocol}://${host}:3001/ws`;
+    // Update the host and port construction
+    const wsUrl = `${protocol}://${window.location.hostname}:${import.meta.env.VITE_WS_PORT || 3001}/ws`;
+    return wsUrl;
   }
   
   connect() {
@@ -201,8 +202,95 @@ class WebSocketClient {
   }
 }
 
+// Add new wsUrl definition based on prompt
+const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+const wsUrl = `${protocol}://${window.location.hostname}:${import.meta.env.VITE_WS_PORT || 3001}/ws`;
+
+let socket = null;
+let reconnectInterval = 5000; // 5 seconds
+let messageQueue = []; // Queue for messages if socket is not ready
+
+const connectWebSocket = (roomId = 'default-room') => {
+  // Update URL construction to use the new wsUrl and append roomId correctly
+  const urlWithRoom = `${wsUrl}?roomId=${roomId}`; // Use the updated wsUrl
+  console.log(`Attempting to connect to WebSocket: ${urlWithRoom}`);
+
+  // Close existing socket if any before reconnecting
+  if (socket && socket.readyState !== WebSocket.CLOSED) {
+    socket.close();
+  }
+
+  socket = new WebSocket(urlWithRoom, 'chat'); // Specify protocol if needed
+
+  socket.onopen = () => {
+    console.log('WebSocket connection established');
+    // Send any queued messages
+    messageQueue.forEach(msg => sendMessage(msg));
+    messageQueue = [];
+    // Reset reconnect interval on successful connection
+    reconnectInterval = 5000; 
+  };
+
+  socket.onmessage = (event) => {
+    try {
+      const message = JSON.parse(event.data);
+      console.log('Message from server:', message);
+      // Handle incoming messages (e.g., update UI, dispatch actions)
+      // Example: dispatch(handleWebSocketMessage(message));
+    } catch (error) {
+      console.error('Failed to parse message or invalid message format:', event.data, error);
+    }
+  };
+
+  socket.onerror = (error) => {
+    console.error('WebSocket error:', error);
+    // Optionally attempt to reconnect on error
+  };
+
+  socket.onclose = (event) => {
+    console.log(`WebSocket connection closed: Code=${event.code}, Reason=${event.reason}`);
+    socket = null; // Ensure socket is nullified
+    // Attempt to reconnect after a delay
+    setTimeout(() => {
+      console.log('Attempting to reconnect WebSocket...');
+      connectWebSocket(roomId); // Pass roomId for reconnection
+    }, reconnectInterval);
+    // Exponential backoff could be implemented here
+    // reconnectInterval = Math.min(reconnectInterval * 2, 60000); // e.g., double interval up to 60s
+  };
+};
+
+const sendMessage = (message) => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(message));
+  } else {
+    console.warn('WebSocket not connected. Queuing message:', message);
+    // Queue message if socket is not open
+    messageQueue.push(message);
+    // Attempt to connect if socket is null or closed
+    if (!socket || socket.readyState === WebSocket.CLOSED) {
+       // You might need to know the current roomId here if it's dynamic
+       // connectWebSocket('current_room_id'); // Re-trigger connection
+    }
+  }
+};
+
+const disconnectWebSocket = () => {
+  if (socket) {
+    socket.close();
+    socket = null;
+  }
+};
+
+// Export functions for use in components
+export { connectWebSocket, sendMessage, disconnectWebSocket };
+
+// Optional: Initialize connection automatically if needed
+// connectWebSocket();
+
 // Export a singleton instance with auto-connection
-export const websocket = new WebSocketClient(null, { autoConnect: true });
+// Ensure the WebSocketClient uses the correct default URL logic if no URL is passed
+export const websocket = new WebSocketClient(undefined, { autoConnect: true }); // Pass undefined to use default URL
 
 // Export the class for custom instances
 export default WebSocketClient;

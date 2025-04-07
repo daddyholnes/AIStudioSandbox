@@ -144,14 +144,11 @@ if (url.pathname === '/ws') {
     });
     
     // Add CORS headers for WebSocket
-    const allowedOrigins = ['https://*.replit.dev', 'http://localhost:*'];
-    
-    this.wss.on('headers', (headers) => {
-      headers.push(
-        'Access-Control-Allow-Origin: ' + allowedOrigins.join(', '),
-        'Access-Control-Allow-Methods: GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers: Content-Type'
-      );
+    this.wss.on('headers', (headers, req) => {
+      // More specific origin check if needed, e.g., based on req.headers.origin
+      headers.push('Access-Control-Allow-Origin: http://localhost:5173'); // Allow specific client origin
+      headers.push('Access-Control-Allow-Methods: GET, POST');
+      // Add other headers if necessary, e.g., Access-Control-Allow-Headers
     });
     
     log('WebSocket collaboration server initialized', 'websocket');

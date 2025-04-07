@@ -1,11 +1,11 @@
 import { AISession } from '../../shared/schema';
-// Corrected imports to use exported constants and default export
+// Add explicit .js extension for ES module import
 import googleAI, { 
   PRODUCTION_MODEL,
-  EXPERIMENTAL_MODEL, // Assuming EXPERIMENTAL_MODEL might be used elsewhere or later
-  VISION_MODEL,       // Assuming VISION_MODEL might be used elsewhere or later
+  EXPERIMENTAL_MODEL, 
+  VISION_MODEL,       
   getModelInstance 
-} from '../../genkit.config';
+} from '../../genkit.config.js'; 
 
 /**
  * Helper to clean and format messages for chat history

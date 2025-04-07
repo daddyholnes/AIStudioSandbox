@@ -19,10 +19,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // Add WebSocket proxy configuration
       '/ws': {
-        target: 'ws://localhost:3001',
-        ws: true,
-        changeOrigin: true,
+        target: 'ws://localhost:3001', // Target the WebSocket server port
+        ws: true,                      // Enable WebSocket proxying
+        changeOrigin: true             // Recommended for virtual hosts
       }
     },
     watch: {
