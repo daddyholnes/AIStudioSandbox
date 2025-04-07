@@ -1,36 +1,25 @@
-import * as core from '@genkit-ai/core';
-import * as googleai from '@genkit-ai/googleai';
+import { genkit } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
 
-// Get API Key from environment
-const apiKey = process.env.GEMINI_API_KEY || '';
-
-if (!apiKey) {
-  console.warn('Warning: GEMINI_API_KEY environment variable is not set');
-}
-
-// Create API Key object using available method
-const apiKeyObj = core.apiKey(apiKey);
-
-// Create the Google AI plugin
-const googleAIPlugin = googleai.googleAI({ apiKey });
-
-// Explicit named exports
+// Define model constants
 export const PRODUCTION_MODEL = 'gemini-1.5-pro';
 export const EXPERIMENTAL_MODEL = 'gemini-1.5-flash';
 export const VISION_MODEL = 'gemini-1.5-pro-vision';
 
-// Model instance factory
+// Function to get model instance
 export const getModelInstance = (modelId: string) => {
-  return googleAIPlugin.getModel(modelId);
+  return googleAI.getModel(modelId);
 };
 
-// Export the configuration with proper error handling
-export { core, googleAIPlugin, apiKeyObj };
-
-// Default export for Genkit configuration
-export default core.genkit({
+// Genkit configuration
+export default genkit({
   plugins: [
-    googleAIPlugin
+    googleAI({
+      // Use environment variables with fallbacks (Update fallbacks if needed)
+      apiKey: process.env.GEMINI_API_KEY || 'your-fallback-api-key', 
+      projectId: process.env.GOOGLE_CLOUD_PROJECT || 'your-fallback-project-id',
+    }),
   ],
-  enableTracing: true
+  // Use enableTracingAndMetrics as suggested
+  enableTracingAndMetrics: true, 
 });

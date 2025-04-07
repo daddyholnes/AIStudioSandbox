@@ -1,3 +1,4 @@
+import 'dotenv/config'; // Load environment variables
 import express, { type Request, Response, NextFunction } from "express";
 import http from 'http';
 // Ensure the correct WebSocket service is imported
