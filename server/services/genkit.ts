@@ -1,5 +1,11 @@
 import { AISession } from '../../shared/schema';
-import googleAI, { getModelInstance, PRODUCTION_MODEL, ADVANCED_MODEL, EXPERIMENTAL_MODEL, VISION_MODEL } from '../../genkit.config';
+// Corrected imports to use exported constants
+import googleAI, { 
+  PRODUCTION_MODEL,
+  EXPERIMENTAL_MODEL, // Assuming EXPERIMENTAL_MODEL might be used elsewhere or later
+  VISION_MODEL,       // Assuming VISION_MODEL might be used elsewhere or later
+  getModelInstance 
+} from '../../genkit.config';
 
 /**
  * Helper to clean and format messages for chat history
@@ -22,7 +28,7 @@ export const genkitHandler = {
     try {
       const history = session?.history || [];
       
-      // Get model instance
+      // Get model instance - Using PRODUCTION_MODEL constant
       const model = getModelInstance(PRODUCTION_MODEL);
       
       // Start a chat
@@ -52,8 +58,8 @@ export const genkitHandler = {
    */
   async generateCode(prompt: string, language: string = 'typescript'): Promise<string> {
     try {
-      // Get appropriate model for code generation
-      const model = getModelInstance(ADVANCED_MODEL);
+      // Get appropriate model for code generation - Using PRODUCTION_MODEL constant
+      const model = getModelInstance(PRODUCTION_MODEL);
       
       // Generate code with specialized prompt
       const result = await model.generateContent(
@@ -72,8 +78,8 @@ export const genkitHandler = {
    */
   async explainCode(code: string): Promise<string> {
     try {
-      // Get appropriate model for code analysis
-      const model = getModelInstance(ADVANCED_MODEL);
+      // Get appropriate model for code analysis - Using PRODUCTION_MODEL constant
+      const model = getModelInstance(PRODUCTION_MODEL);
       
       // Generate explanation
       const result = await model.generateContent(
@@ -95,7 +101,7 @@ export const genkitHandler = {
       // Format messages for the summary
       const conversationText = messages.map(msg => `${msg.role.toUpperCase()}: ${msg.content}`).join('\n\n');
       
-      // Get appropriate model for summarization
+      // Get appropriate model for summarization - Using PRODUCTION_MODEL constant
       const model = getModelInstance(PRODUCTION_MODEL);
       
       // Generate summary

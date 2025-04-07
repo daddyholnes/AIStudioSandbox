@@ -1,3 +1,6 @@
+// Purpose: Server-side WebSocket management for real-time collaboration.
+// Ensure this file is used only for server-side WebSocket operations.
+
 // WebSocket-based Room Service
 // This module provides real-time collaboration capabilities without LiveKit
 
@@ -772,99 +775,5 @@ if (url.pathname === '/ws') {
   }
 }
 
-// Create a singleton instance
+// Create a singleton instance of the Room Manager
 export const webSocketRoomManager = new WebSocketRoomManager();
-
-interface Client {
-  id: string;
-  ws: WebSocket;
-  sessionId?: string;
-  features?: Record<string, boolean>;
-}
-
-export class WebSocketService {
-  private wss: WebSocketServer;
-  private clients: Map<string, Client> = new Map();
-  
-  constructor(httpServer: Server) {
-    this.wss = new WebSocketServer({ noServer: true });
-    
-    // Handle upgrade
-    httpServer.on('upgrade', (request, socket, head) => {
-      this.wss.handleUpgrade(request, socket, head, (ws) => {
-        this.wss.emit('connection', ws, request);
-      });
-    });
-    
-    this.setupConnectionHandlers();
-  }
-  
-  private setupConnectionHandlers() {
-    this.wss.on('connection', (ws: WebSocket) => {
-      const clientId = this.generateClientId();
-      this.clients.set(clientId, { id: clientId, ws });
-      
-      console.log(`Client connected: ${clientId}`);
-      
-      ws.on('message', (message: string) => {
-        try {
-          const data = JSON.parse(message.toString());
-          this.handleMessage(clientId, data);
-        } catch (error) {
-          console.error('Error parsing message:', error);
-        }
-      });
-      
-      ws.on('close', () => {
-        console.log(`Client disconnected: ${clientId}`);
-        this.clients.delete(clientId);
-      });
-    });
-  }
-  
-  private generateClientId(): string {
-    return Math.random().toString(36).substring(2, 15);
-  }
-  
-  private handleMessage(clientId: string, data: any) {
-    const client = this.clients.get(clientId);
-    if (!client) return;
-    
-    switch (data.type) {
-      case 'init':
-        client.sessionId = data.sessionId;
-        break;
-      case 'featureUpdate':
-        // Update client's feature state
-        if (!client.features) client.features = {};
-        client.features[data.feature] = data.value;
-        
-        // Broadcast to other clients in the same session
-        this.broadcastFeatureUpdate(client.sessionId, data.feature, data.value, clientId);
-        break;
-    }
-  }
-  
-  private broadcastFeatureUpdate(sessionId: string | undefined, feature: string, value: boolean, excludeClientId: string) {
-    if (!sessionId) return;
-    
-    for (const [id, client] of this.clients.entries()) {
-      if (id !== excludeClientId && client.sessionId === sessionId) {
-        if (client.ws.readyState === WebSocket.OPEN) {
-          client.ws.send(JSON.stringify({
-            type: 'featureUpdate',
-            features: { [feature]: value }
-          }));
-        }
-      }
-    }
-  }
-  
-  broadcastToSession(sessionId: string, data: any) {
-    for (const client of this.clients.values()) {
-      if (client.sessionId === sessionId && client.ws.readyState === WebSocket.OPEN) {
-        client.ws.send(JSON.stringify(data));
-      }
-    }
-  }
-}

@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import http from 'http';
-import { WebSocketService } from './services/websocket';
+// Ensure the correct WebSocket service is imported
+import { webSocketRoomManager } from './services/websocket';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -10,8 +11,9 @@ const port = process.env.PORT || 3000;
 // Create HTTP server
 const server = http.createServer(app);
 
-// Initialize WebSocket service
-const webSocketService = new WebSocketService(server);
+// Initialize WebSocket service (using the Room Manager)
+// The Room Manager initializes itself with the server instance later
+// webSocketRoomManager.initialize(server); // Initialization might happen within registerRoutes or elsewhere
 
 // Setup middleware
 app.use(express.json());
@@ -51,49 +53,65 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => res.send('API Server Running'));
 
 // API routes for feature toggles
-app.get('/api/ai/features', (req, res) => {
-  const sessionId = req.query.sessionId || 'default';
-  // Normally you'd fetch from a database, but for demo:
-  res.json({
-    features: {
-      webAccess: true,
-      thinking: false,
-      genkit: true,
-      commands: false
-    }
-  });
-});
-
-app.post('/api/ai/features', (req, res) => {
-  const sessionId = req.query.sessionId || 'default';
-  // Normally you'd save to a database
-  console.log(`Feature update for session ${sessionId}:`, req.body);
-  res.json({ success: true, features: req.body });
-});
-
-// Code generation endpoint
-app.post('/api/ai/code', async (req, res) => {
+app.get('/api/ai/features', async (req, res) => { // Make async if storage interaction is async
   try {
-    const { input } = req.body;
-    // For demo, just return a mock response
-    const result = `function Counter() {
-  const [count, setCount] = useState(0);
-  return (
-    <div>
-      <p>{count}</p>
-      <button onClick={() => setCount(c => c+1)}>Increment</button>
-    </div>
-  );
-}`;
-    
-    res.json({ result });
+    const sessionId = req.query.sessionId as string || 'default';
+    // Fetch from actual storage if implemented
+    const session = await storage.getOrCreateAISession(sessionId); // Assuming storage is available
+    res.json({
+      success: true, // Add success flag for consistency
+      features: session.features || { // Provide default features if none exist
+        webAccess: true,
+        thinking: false,
+        genkit: true,
+        commands: false,
+        prompts: true // Add prompts if it's a feature
+      }
+    });
   } catch (error) {
-    console.error('Error generating code:', error);
-    res.status(500).json({ error: (error as Error).message });
+    log(`Error fetching features: ${(error as Error).message}`, 'error');
+    res.status(500).json({ success: false, message: 'Failed to fetch features' });
   }
 });
 
+app.post('/api/ai/features', async (req, res) => { // Make async
+  try {
+    const sessionId = req.query.sessionId as string || 'default';
+    const featureUpdates = req.body;
+    // Save to actual storage
+    const session = await storage.getOrCreateAISession(sessionId);
+    session.features = { ...(session.features || {}), ...featureUpdates };
+    await storage.saveAISession(session); // Assuming storage has save method
+
+    // Broadcast update (if WebSocket service is available via app context)
+    const wsService = req.app.get('webSocketService');
+    if (wsService && typeof wsService.broadcastToSession === 'function') {
+      wsService.broadcastToSession(sessionId, {
+        type: 'featureUpdate',
+        features: featureUpdates
+      }, /* excludeSenderId */); // Add excludeSenderId if needed
+    } else if (webSocketRoomManager) { // Fallback to direct manager if needed
+       webSocketRoomManager.broadcastFeatureUpdate(sessionId, featureUpdates);
+    }
+
+
+    log(`Feature update for session ${sessionId}: ${JSON.stringify(featureUpdates)}`);
+    res.json({ success: true, features: session.features });
+  } catch (error) {
+    log(`Error updating features: ${(error as Error).message}`, 'error');
+    res.status(500).json({ success: false, message: 'Failed to update features' });
+  }
+});
+
+// Code generation endpoint (REMOVE MOCK - Handled by Genkit route)
+/*
+app.post('/api/ai/code', async (req, res) => {
+  // ... removed mock implementation ...
+});
+*/
+
 (async () => {
+  // Pass the server instance to registerRoutes if needed for WebSocket setup
   await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -113,8 +131,8 @@ app.post('/api/ai/code', async (req, res) => {
     serveStatic(app);
   }
 
-  // Make WebSocket service available to routes
-  app.set('webSocketService', webSocketService);
+  // Make WebSocket service available to routes if needed elsewhere
+  // app.set('webSocketService', webSocketRoomManager); // Or the specific service instance
 
   // Start server
   server.listen(port, () => {

@@ -8,7 +8,9 @@ import StatusBar from '../components/StatusBar';
 import OutputPanel from '../components/OutputPanel';
 import { SettingsPanel } from '../components/SettingsPanel';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import websocketCollab from '../lib/websocketCollab';
+// Import the singleton instance of the collaboration client
+import { webSocketCollab } from '../lib/websocketCollab';
+import { FeatureState } from '../types'; // Import FeatureState type
 
 // Define ProjectFileInfo type for the client-side components
 export interface ProjectFileInfo {
@@ -36,48 +38,94 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   const [editorContent, setEditorContent] = useState<string>('');
   const [output, setOutput] = useState<string[]>([]);
   const [files, setFiles] = useState<ProjectFileInfo[]>([]);
-  const [roomConnected, setRoomConnected] = useState(false);
+  const [roomConnected, setRoomConnected] = useState(webSocketCollab.isConnected()); // Initialize with current status
   const [roomName, setRoomName] = useState('default-room');
-  
+  const [sessionId, setSessionId] = useState<string>('default'); // Example session ID
+
   // AI features state
-  const [aiChatMode, setAiChatMode] = useState<'chat' | 'history' | 'settings'>('chat');
-  const [features, setFeatures] = useState({
+  const [features, setFeatures] = useState<FeatureState>({
     webAccess: false,
     thinking: false,
-    prompts: true,
+    // prompts: true, // Removed as it's not in FeatureState type
     genkit: true,
-    commands: false
+    commands: false,
+    // Add other features defined in FeatureState if needed
+    collaboration: false,
+    codeCompletion: false,
+    autoSave: false,
+    darkMode: isDarkMode, // Initialize from props
   });
-  
-  // Convenience accessor functions 
+
+  // Convenience accessor functions
   const webAccessEnabled = features.webAccess;
   const thinkingEnabled = features.thinking;
-  const promptsEnabled = features.prompts;
+  // const promptsEnabled = features.prompts; // Removed
   const genkitEnabled = features.genkit;
   const commandsEnabled = features.commands;
 
+  // Fetch initial data and set up WebSocket listeners
   useEffect(() => {
-    // Fetch project files on component mount
     fetchFiles();
-    // Create or join LiveKit room
-    createOrJoinRoom();
-    // Fetch current feature toggle states
-    fetchFeatureStates();
-  }, []);
-  
+    fetchFeatureStates(); // Fetch initial feature states
+
+    // WebSocket connection listeners
+    const handleConnect = () => {
+      console.log('CodeStudio: WebSocket connected');
+      setRoomConnected(true);
+      // Attempt to join room after connection
+      joinRoom();
+    };
+    const handleDisconnect = () => {
+      console.log('CodeStudio: WebSocket disconnected');
+      setRoomConnected(false);
+    };
+    const handleError = (error: Error) => {
+      console.error('CodeStudio: WebSocket error', error);
+      setRoomConnected(false);
+    };
+     const handleFeatureUpdate = (data: any) => {
+       if (data.type === 'featureUpdate') {
+         console.log('Received feature update via WebSocket:', data.features);
+         setFeatures(prev => ({ ...prev, ...data.features }));
+       }
+     };
+
+    webSocketCollab.on('connect', handleConnect);
+    webSocketCollab.on('disconnect', handleDisconnect);
+    webSocketCollab.on('error', handleError);
+    webSocketCollab.on('message', handleFeatureUpdate); // Listen for feature updates
+
+    // If already connected when component mounts, join room
+    if (webSocketCollab.isConnected()) {
+      setRoomConnected(true);
+      joinRoom();
+    } else {
+      // Attempt connection if not already connected
+      webSocketCollab.connect().catch(err => console.error("Initial connection failed:", err));
+    }
+
+    // Cleanup listeners on unmount
+    return () => {
+      webSocketCollab.off('connect', handleConnect);
+      webSocketCollab.off('disconnect', handleDisconnect);
+      webSocketCollab.off('error', handleError);
+      webSocketCollab.off('message', handleFeatureUpdate);
+    };
+  }, []); // Run only on mount
+
   // Fetch the current state of all feature toggles from the server
   const fetchFeatureStates = async () => {
     try {
-      const response = await fetch('/api/ai/features');
+      const response = await fetch(`/api/ai/features?sessionId=${sessionId}`);
       const data = await response.json();
-      
-      if (data.success) {
+
+      if (data.success && data.features) {
         // Update local state with server state
         setFeatures(prev => ({
           ...prev,
-          ...(data.features || {})  // Only update if features exist in response
+          ...data.features
         }));
-        console.log('Feature states synchronized with server');
+        console.log('Feature states synchronized with server:', data.features);
       } else {
         console.error('Failed to fetch feature states:', data.message);
       }
@@ -91,61 +139,60 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
       const response = await fetch('/api/files');
       const data = await response.json();
       setFiles(data);
+      // Select the first file if none is selected
+      if (!selectedFileId && data.length > 0) {
+          const firstFile = findFirstFile(data);
+          if (firstFile) {
+              handleFileSelect(firstFile.id);
+          }
+      }
     } catch (error) {
       console.error('Error fetching files:', error);
     }
   };
 
-  const createOrJoinRoom = async () => {
-    try {
-      // Create or join a collaboration room using our WebSocket collaboration service
-      const participantName = 'User-' + Math.floor(Math.random() * 10000);
-      
-      // Import the WebSocket collab client
-      const { webSocketCollab } = await import('../lib/websocketCollab');
-      
-      // Set up event handlers
-      webSocketCollab.on('connect', () => {
-        console.log('WebSocket collaboration connected');
-      });
-      
-      webSocketCollab.on('error', (error) => {
-        console.error('WebSocket collaboration error:', error);
-      });
-      
-      webSocketCollab.on('room-joined', (data) => {
-        console.log('Joined room:', data);
-        setRoomConnected(true);
-      });
-      
-      // Connect to the WebSocket server
-      await webSocketCollab.connect();
-      
-      // Join or create the room
-      try {
-        await webSocketCollab.joinRoom(roomName, participantName, true);
-      } catch (joinError) {
-        console.error('Error joining room:', joinError);
-        
-        // Try to create the room first
-        try {
-          await webSocketCollab.createRoom(roomName);
-          await webSocketCollab.joinRoom(roomName, participantName);
-        } catch (createError) {
-          console.error('Error creating room:', createError);
-        }
+  // Helper to find the first non-folder file
+  const findFirstFile = (fileList: ProjectFileInfo[]): ProjectFileInfo | null => {
+      for (const file of fileList) {
+          if (!file.isFolder) return file;
+          if (file.children) {
+              const found = findFirstFile(file.children);
+              if (found) return found;
+          }
       }
+      return null;
+  };
+
+
+  const joinRoom = async () => {
+    if (!webSocketCollab.isConnected()) {
+      console.warn("Cannot join room: WebSocket not connected.");
+      return;
+    }
+    try {
+      const participantName = 'User-' + Math.random().toString(36).substring(7);
+      await webSocketCollab.joinRoom(roomName, participantName, true);
+      console.log(`Successfully joined room: ${roomName}`);
     } catch (error) {
-      console.error('Error with WebSocket collaboration:', error);
+      console.error('Error joining room:', error);
+      // Optionally try creating the room if joining fails
+      try {
+          await webSocketCollab.createRoom(roomName);
+          console.log(`Created room ${roomName}, attempting to join again...`);
+          await joinRoom(); // Retry joining
+      } catch (createError) {
+          console.error(`Failed to create or join room ${roomName}:`, createError);
+      }
     }
   };
 
+  // ... (handleFileSelect, findFile, handleEditorChange remain mostly the same) ...
   const handleFileSelect = (fileId: string) => {
     setSelectedFileId(fileId);
-    
+
     // Find the file
-    const findFile = (files: ProjectFileInfo[]): ProjectFileInfo | undefined => {
-      for (const file of files) {
+    const findFile = (currentFiles: ProjectFileInfo[]): ProjectFileInfo | undefined => {
+      for (const file of currentFiles) {
         if (file.id === fileId) return file;
         if (file.isFolder && file.children) {
           const found = findFile(file.children);
@@ -154,17 +201,17 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
       }
       return undefined;
     };
-    
+
     const file = findFile(files);
-    
+
     if (file && !file.isFolder) {
       // Add to open tabs if not already open
       if (!openTabs.includes(fileId)) {
-        setOpenTabs([...openTabs, fileId]);
+        setOpenTabs(prevTabs => [...prevTabs, fileId]);
       }
-      
+
       setActiveTab(fileId);
-      
+
       // Set editor content
       setEditorContent(file.content || '');
     }
@@ -172,10 +219,39 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
 
   const handleEditorChange = (content: string) => {
     setEditorContent(content);
-    
-    // In a real app, we would save the file content
-    console.log('File content changed, would save:', content);
+
+    // Update the file content in the local state immediately for responsiveness
+    if (activeTab) {
+      setFiles(prevFiles => {
+        const updateFileContent = (fileList: ProjectFileInfo[]): ProjectFileInfo[] => {
+          return fileList.map(file => {
+            if (file.id === activeTab) {
+              return { ...file, content };
+            }
+            if (file.isFolder && file.children) {
+              return {
+                ...file,
+                children: updateFileContent(file.children)
+              };
+            }
+            return file;
+          });
+        };
+        return updateFileContent(prevFiles);
+      });
+
+      // Debounce saving or send updates via WebSocket if collab is active
+      // Example: Send update via WebSocket collab
+      if (webSocketCollab.isInRoom()) {
+        webSocketCollab.updateCode(activeTab, content)
+          .catch(err => console.error("Failed to send code update:", err));
+      } else {
+        // Implement debounced saving to API here if needed
+        console.log('File content changed, would save:', content.substring(0, 50) + '...');
+      }
+    }
   };
+
 
   const handleToggleProjectPanel = () => {
     setActivePanel(activePanel === 'project' ? '' : 'project');
@@ -184,89 +260,80 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
   const handleToggleAIPanel = () => {
     setActivePanel(activePanel === 'ai' ? '' : 'ai');
   };
-  
+
   const handleToggleSettingsPanel = () => {
     setActivePanel(activePanel === 'settings' ? '' : 'settings');
   };
-  
+
   // Handle AI feature toggles
   const handlePromptPanel = () => {
     setActivePanel(activePanel === 'prompt' ? '' : 'prompt');
-    setFeatures(prev => ({
-      ...prev,
-      prompts: true
-    }));
-    console.log('Prompts selected');
+    // handleFeatureToggle('prompts'); // Toggle prompts feature if needed
+    console.log('Prompts panel selected');
   };
-  
+
   const handleHistoryPanel = () => {
     setActivePanel(activePanel === 'ai' ? '' : 'ai');
-    setAiChatMode('history');
+    // setAiChatMode('history'); // Assuming AIPanel handles internal mode
     console.log('History selected');
   };
-  
-  // Updated generic toggle handler that works with any feature
+
+  // Updated generic toggle handler that works with any feature in FeatureState
   const handleFeatureToggle = async (feature: keyof FeatureState) => {
     const newValue = !features[feature];
+    // Optimistic UI update
     setFeatures(prev => ({ ...prev, [feature]: newValue }));
-    
-    // Send to server
-    websocketCollab.sendFeatureUpdate(feature, newValue);
-    
-    // Also update via REST API for persistence
+
     try {
-      await fetch(`/api/ai/features?sessionId=${sessionId}`, {
+      // Send update via WebSocket for real-time sync
+      if (webSocketCollab.isConnected()) {
+        webSocketCollab.send({
+          type: 'featureUpdate',
+          feature,
+          value: newValue
+        });
+      }
+
+      // Update via REST API for persistence
+      const response = await fetch(`/api/ai/features?sessionId=${sessionId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [feature]: newValue })
       });
-    } catch (error) {
-      console.error('Error updating feature toggle:', error);
-      
-      // Verify state in case of error
-      try {
-        const response = await fetch(`/api/ai/features?sessionId=${sessionId}`);
-        const serverState = await response.json();
-        if (serverState.features[feature] !== newValue) {
-          setFeatures(prev => ({ ...prev, ...serverState.features }));
-        }
-      } catch (syncError) {
-        console.error('Error syncing feature state:', syncError);
+
+      if (!response.ok) {
+        throw new Error(`Failed to update feature ${feature}`);
       }
+      const data = await response.json();
+      console.log(`Feature ${feature} updated successfully:`, data.features);
+      // Optionally re-sync state from server response if needed
+      // setFeatures(prev => ({ ...prev, ...data.features }));
+
+    } catch (error) {
+      console.error(`Error toggling feature ${feature}:`, error);
+      // Revert UI state on error
+      setFeatures(prev => ({ ...prev, [feature]: !newValue }));
+      // Optionally show an error toast to the user
     }
   };
 
-  // Add event listener for WebSocket updates
-  useEffect(() => {
-    const handleFeatureUpdate = (event: CustomEvent) => {
-      const { features: updatedFeatures } = event.detail;
-      setFeatures(prev => ({ ...prev, ...updatedFeatures }));
-    };
-    
-    window.addEventListener('featureUpdate', handleFeatureUpdate as EventListener);
-    
-    return () => {
-      window.removeEventListener('featureUpdate', handleFeatureUpdate as EventListener);
-    };
-  }, []);
 
   // Feature-specific toggle handlers that use the generic handler
   const handleWebAccessToggle = () => handleFeatureToggle('webAccess');
   const handleThinkingToggle = () => handleFeatureToggle('thinking');
-  const handlePromptsToggle = () => handleFeatureToggle('prompts');
+  // const handlePromptsToggle = () => handleFeatureToggle('prompts'); // Removed
   const handleGenkitToggle = () => handleFeatureToggle('genkit');
   const handleCommandsToggle = () => handleFeatureToggle('commands');
 
-  const executeCode = async () => {
+  // ... (executeCode remains the same) ...
+   const executeCode = async () => {
     // Add a loading message
-    setOutput([...output, '> Executing code...']);
-    
+    setOutput(prev => [...prev, '> Executing code...']);
+
     try {
       // Find the currently active file to determine language
-      const findFile = (files: ProjectFileInfo[]): ProjectFileInfo | undefined => {
-        for (const file of files) {
+      const findFile = (currentFiles: ProjectFileInfo[]): ProjectFileInfo | undefined => {
+        for (const file of currentFiles) {
           if (file.id === activeTab) return file;
           if (file.isFolder && file.children) {
             const found = findFile(file.children);
@@ -275,48 +342,49 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
         }
         return undefined;
       };
-      
+
       const file = findFile(files);
       const language = file?.language || 'javascript';
-      
+
       const response = await fetch('/api/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           code: editorContent,
           language
         }),
       });
-      
+
       const data = await response.json();
-      
+
       // Display the result
       if (data.result) {
-        setOutput([...output, data.result]);
+        setOutput(prev => [...prev, data.result]);
       }
-      
+
       if (data.error) {
-        setOutput([...output, `Error: ${data.error}`]);
+        setOutput(prev => [...prev, `Error: ${data.error}`]);
       }
     } catch (error: any) {
       console.error('Error executing code:', error);
-      setOutput([...output, `Error: ${error.message || 'Unknown error'}`]);
+      setOutput(prev => [...prev, `Error: ${error.message || 'Unknown error'}`]);
     }
   };
 
+
   return (
     <div className="flex flex-col h-screen bg-background">
-      <Header 
-        aiModel={aiModel} 
+      <Header
+        aiModel={aiModel}
         setAiModel={setAiModel}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
       />
-      
+
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar 
+        <Sidebar
           onToggleProjectPanel={handleToggleProjectPanel}
           onToggleAIPanel={handleToggleAIPanel}
           onToggleSettingsPanel={handleToggleSettingsPanel}
@@ -328,56 +396,59 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
           onCommandsToggle={handleCommandsToggle}
           activePanel={activePanel}
         />
-        
+
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {activePanel === 'project' && (
             <>
               <ResizablePanel id="project-panel" order={1} defaultSize={20} minSize={15} maxSize={30}>
-                <ProjectPanel 
+                <ProjectPanel
                   files={files}
                   onFileSelect={handleFileSelect}
                   selectedFileId={selectedFileId}
                 />
               </ResizablePanel>
-              <ResizableHandle />
+              <ResizableHandle withHandle />
             </>
           )}
-          
-          <ResizablePanel 
-            id="editor-panel" 
-            order={2} 
-            defaultSize={activePanel ? (activePanel === 'project' ? 80 : 60) : 100}
+
+          <ResizablePanel
+            id="editor-panel"
+            order={2}
+            // Adjust default size based on which panels are open
+            defaultSize={
+                activePanel === 'project' && activePanel === 'ai' ? 60 :
+                activePanel === 'project' || activePanel === 'ai' ? 80 : 100
+            }
           >
             <ResizablePanelGroup direction="vertical">
               <ResizablePanel id="code-editor" order={1} defaultSize={70}>
                 <EditorPanel
                   openTabs={openTabs}
                   activeTab={activeTab}
-                  onTabSelect={setActiveTab}
+                  onTabSelect={setActiveTab} // Pass setActiveTab directly
                   onEditorChange={handleEditorChange}
                   files={files}
                   editorContent={editorContent}
                 />
               </ResizablePanel>
-              <ResizableHandle />
+              <ResizableHandle withHandle />
               <ResizablePanel id="output-panel" order={2} defaultSize={30}>
                 <OutputPanel output={output} />
               </ResizablePanel>
             </ResizablePanelGroup>
           </ResizablePanel>
-          
+
           {activePanel === 'ai' && (
             <>
-              <ResizableHandle />
+              <ResizableHandle withHandle />
               <ResizablePanel id="ai-panel" order={3} defaultSize={20} minSize={20} maxSize={40}>
-                <AIPanel 
+                <AIPanel
                   roomConnected={roomConnected}
                   roomName={roomName}
-                  chatMode={aiChatMode}
-                  setChatMode={setAiChatMode}
+                  // Pass feature states and handlers down
                   webAccessEnabled={webAccessEnabled}
                   thinkingEnabled={thinkingEnabled}
-                  promptsEnabled={promptsEnabled}
+                  // promptsEnabled={promptsEnabled} // Removed
                   genkitEnabled={genkitEnabled}
                   commandsEnabled={commandsEnabled}
                   onWebAccessToggle={handleWebAccessToggle}
@@ -390,48 +461,23 @@ const CodeStudio = ({ aiModel, setAiModel, isDarkMode, setIsDarkMode }: CodeStud
               </ResizablePanel>
             </>
           )}
-          
+
           {activePanel === 'settings' && (
             <>
               <ResizableHandle />
               <ResizablePanel id="settings-panel" order={3} defaultSize={20} minSize={20} maxSize={40}>
-                <SettingsPanel 
-                  onClose={() => handleToggleSettingsPanel()} 
+                 <SettingsPanel
+                  onClose={() => setActivePanel('')} // Close panel on request
                   features={features}
-                  onFeatureToggle={(feature, value) => {
-                    // Update the local state
-                    setFeatures(prev => ({
-                      ...prev,
-                      [feature]: value
-                    }));
-                    
-                    // Call the API to update server-side state
-                    fetch('/api/ai/features', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ [feature]: value })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                      console.log(`${feature} ${value ? 'enabled' : 'disabled'}`);
-                    })
-                    .catch(error => {
-                      console.error(`Error toggling ${feature}:`, error);
-                      // Revert UI state if API call fails
-                      setFeatures(prev => ({
-                        ...prev,
-                        [feature]: !value
-                      }));
-                    });
-                  }}
+                  onFeatureToggle={handleFeatureToggle} // Pass generic handler
                 />
               </ResizablePanel>
             </>
           )}
         </ResizablePanelGroup>
       </div>
-      
-      <StatusBar 
+
+      <StatusBar
         language={files.find(f => f.id === activeTab)?.language || 'plaintext'}
         roomConnected={roomConnected}
       />
