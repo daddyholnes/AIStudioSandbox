@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { v4 as uuidv4 } from 'uuid';
 import { log } from '../vite.js';
-import * as z from 'zod';
+import { z } from 'zod';
 
 // Participant in a room
 interface Participant {
@@ -385,7 +385,14 @@ if (url.pathname === '/ws') {
     }
     
     // Get room
-    const room = this.rooms.get(roomId)!;
+    const room = this.rooms.get(roomId);
+    if (!room) {
+        ws.send(JSON.stringify({
+            type: 'error',
+            message: 'Room does not exist'
+        }));
+        return;
+    }
     
     // Check if already in a room
     const existingRoomId = this.getRoomIdForParticipant(ws.clientId);
@@ -540,18 +547,24 @@ if (url.pathname === '/ws') {
     // Get participant
     const participant = this.clients.get(ws.clientId);
     
-    if (participant) {
-      // Update status
-      participant.status = status;
-      
-      // Notify other participants
-      this.broadcastToRoom(roomId, {
-        type: 'status_update',
-        roomId,
-        participantId: ws.clientId,
-        status
-      });
+    if (!participant) {
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: 'Not in a room'
+      }));
+      return;
     }
+    
+    // Update status
+    participant.status = status;
+    
+    // Notify other participants
+    this.broadcastToRoom(roomId, {
+      type: 'status_update',
+      roomId,
+      participantId: ws.clientId,
+      status
+    });
   }
   
   /**
@@ -628,17 +641,23 @@ if (url.pathname === '/ws') {
     // Get participant
     const participant = this.clients.get(ws.clientId);
     
-    if (participant) {
-      // Broadcast to room
-      this.broadcastToRoom(roomId, {
-        type: 'chat_message',
-        roomId,
-        senderId: ws.clientId,
-        senderName: participant.name,
-        message,
-        timestamp: new Date().toISOString()
-      });
+    if (!participant) {
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: 'Not in a room'
+      }));
+      return;
     }
+    
+    // Broadcast to room
+    this.broadcastToRoom(roomId, {
+      type: 'chat_message',
+      roomId,
+      senderId: ws.clientId,
+      senderName: participant.name,
+      message,
+      timestamp: new Date().toISOString()
+    });
   }
   
   /**
