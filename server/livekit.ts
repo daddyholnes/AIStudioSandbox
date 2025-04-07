@@ -31,6 +31,38 @@ const roomService = new RoomServiceClient(
   livekitApiSecret
 );
 
+const livekitHost = process.env.LIVEKIT_HOST || 'https://your-livekit-host.com';
+const apiKey = process.env.LIVEKIT_API_KEY || 'your-api-key';
+const secretKey = process.env.LIVEKIT_SECRET_KEY || 'your-secret-key';
+
+const svc = new RoomServiceClient(livekitHost, apiKey, secretKey);
+
+export const listRooms = async () => {
+  try {
+    const rooms = await svc.listRooms();
+    console.log('Existing rooms:', rooms);
+    return rooms;
+  } catch (error) {
+    console.error('Error listing LiveKit rooms:', error);
+    throw error;
+  }
+};
+
+export const createRoom = async (roomName: string) => {
+  try {
+    await svc.createRoom({
+      name: roomName,
+      emptyTimeout: 10 * 60, // 10 minutes
+      maxParticipants: 20,
+    });
+    console.log(`Room created: ${roomName}`);
+    return true;
+  } catch (error) {
+    console.error('Error creating LiveKit room:', error);
+    throw error;
+  }
+};
+
 export const livekitHandler = {
   /**
    * Create a new LiveKit room
